@@ -14,6 +14,7 @@ import {
 import { browserDeviceWakeEvents } from "../room-session/browser-wake-events";
 import { PhoneRoomSession } from "../room-session/phone-room-session";
 import { createRoomKey } from "../room-session/room-key";
+import { readAirJamSurfaceSettings } from "../settings/surface-settings";
 import { detectRunMode } from "../utils/mode";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "./arcade-runtime-url";
 import {
@@ -62,7 +63,11 @@ export const createBrowserControllerEnvironment = (
     createKey: createRoomKey,
     ...createControllerRoomBindings(previewDeviceId ?? "phone"),
     vibrate: (pattern) => {
-      if (typeof navigator !== "undefined" && navigator.vibrate)
+      if (
+        readAirJamSurfaceSettings().vibration &&
+        typeof navigator !== "undefined" &&
+        navigator.vibrate
+      )
         navigator.vibrate(pattern);
     },
     requestFrame: (callback) => {

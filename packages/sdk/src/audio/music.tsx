@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-import { getEffectiveAudioVolume } from "../settings/platform-settings";
+import { effectiveAudioVolume } from "../settings/platform-settings";
 import {
+  useAirJamSurfaceSettings,
   usePlatformSettingsRuntimeStatus,
-  useResolvedPlatformSettingsSnapshot,
 } from "../settings/platform-settings-runtime";
 import { type SoundCategory } from "./audio-manager";
 import { useAudio, useAudioRuntimeStatus } from "./hooks";
@@ -19,17 +19,17 @@ export interface MusicPlaylistProps<TTrackId extends string = string> {
 
 export function useAudioCategoryVolume(category: AudioVolumeCategory): number {
   const settingsStatus = usePlatformSettingsRuntimeStatus();
-  const settings = useResolvedPlatformSettingsSnapshot();
+  const settings = useAirJamSurfaceSettings();
 
   if (settingsStatus !== "ready") {
     return 0;
   }
 
   if (category === "master") {
-    return settings.audio.masterVolume;
+    return settings.audio.volume;
   }
 
-  return getEffectiveAudioVolume(settings.audio, category);
+  return effectiveAudioVolume(settings.audio, category);
 }
 
 export function useMusicVolume(): number {

@@ -5,423 +5,264 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "../runtime/dev-runtime-events";
 import {
-  DEFAULT_PLATFORM_SETTINGS,
-  getEffectiveAudioVolume,
-  mergePlatformSettings,
-  normalizePlatformSettings,
-  PLATFORM_SETTINGS_STORAGE_KEY,
-  type PartialPlatformSettings,
-  type PlatformAudioSettings,
-  type PlatformSettingsPersistence,
-  type PlatformSettingsSnapshot,
+  DEFAULT_ROOM_SETTINGS,
+  DEFAULT_SURFACE_SETTINGS,
+  normalizeDeviceSettings,
+  normalizeRoomSettings,
+  resolveSurfaceSettings,
+  type AirJamSurfaceSettings,
+  type DeviceSettingsValues,
+  type PlatformSurface,
+  type RoomSettingsValues,
 } from "./platform-settings";
 import { initializeInheritedPlatformSettingsBridge } from "./platform-settings-bridge";
+import {
+  publishSurfaceSettings,
+  readAirJamSurfaceSettings,
+  subscribeSurfaceSettings,
+} from "./surface-settings";
 
-const tryParseJson = (raw: string | null): unknown => {
-  if (!raw) {
+const DEVICE_STORAGE_KEY = "air-jam-device-settings";
+const ROOM_STORAGE_KEY = "air-jam-room-settings";
+
+/**
+ * The platform's settings as they apply to this game surface: sound levels,
+ * vibration, reduced motion, contrast, interface scale and on-screen
+ * controller opacity. Read-only; the platform alone changes them.
+ */
+export const useAirJamSurfaceSettings = (): AirJamSurfaceSettings =>
+  useSyncExternalStore(
+    subscribeSurfaceSettings,
+    readAirJamSurfaceSettings,
+    () => DEFAULT_SURFACE_SETTINGS,
+  );
+
+/** Reduced motion, contrast and size reach every element without game code. */
+const presentSurfaceSettings = (settings: AirJamSurfaceSettings) => {
+  const root = document.documentElement;
+  root.toggleAttribute("data-aj-reduce-motion", settings.reduceMotion);
+  root.toggleAttribute("data-aj-increase-contrast", settings.increaseContrast);
+  root.style.setProperty(
+    "--aj-interface-scale",
+    String(settings.interfaceScale),
+  );
+  root.style.fontSize =
+    settings.interfaceScale === 1
+      ? ""
+      : `${Math.round(settings.interfaceScale * 100)}%`;
+};
+
+const readStored = (key: string): unknown => {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as unknown) : null;
+  } catch {
+    // Storage can be denied or hold a damaged value; defaults apply.
     return null;
   }
+};
 
+const writeStored = (key: string, value: unknown) => {
   try {
-    return JSON.parse(raw) as unknown;
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    return null;
+    // Without storage the setting holds for this page only.
   }
 };
 
-const readPersistedPlatformSettings = (): PlatformSettingsSnapshot => {
-  if (typeof window === "undefined") {
-    return DEFAULT_PLATFORM_SETTINGS;
-  }
+const systemPrefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-  try {
-    const current = tryParseJson(
-      window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY),
-    );
-    if (current) {
-      return normalizePlatformSettings(current);
-    }
-  } catch {
-    // Browser policy may deny storage entirely; settings remain usable in memory.
-  }
+const readDeviceSettings = () =>
+  normalizeDeviceSettings(readStored(DEVICE_STORAGE_KEY), {
+    reduceMotion: systemPrefersReducedMotion(),
+  });
 
-  return DEFAULT_PLATFORM_SETTINGS;
-};
-
-const persistPlatformSettings = (snapshot: PlatformSettingsSnapshot): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      PLATFORM_SETTINGS_STORAGE_KEY,
-      JSON.stringify(snapshot),
-    );
-  } catch {
-    // Ignore storage failures.
-  }
-};
-
-type PlatformSettingsMode = "owner" | "inherited" | "default";
 export type PlatformSettingsRuntimeStatus = "ready" | "waiting";
 
-interface PlatformSettingsContextValue {
-  mode: PlatformSettingsMode;
-  status: PlatformSettingsRuntimeStatus;
-  settings: PlatformSettingsSnapshot;
-  setSettings: (
-    next:
-      | PlatformSettingsSnapshot
-      | ((current: PlatformSettingsSnapshot) => PlatformSettingsSnapshot),
-  ) => void;
-  updateSettings: (patch: PartialPlatformSettings) => void;
+interface OwnerApi {
+  readonly surface: PlatformSurface;
+  readonly device: DeviceSettingsValues;
+  readonly room: RoomSettingsValues;
+  readonly setDevice: (patch: Partial<DeviceSettingsValues>) => void;
+  /** Only the screen holds the room's settings; a phone asks the screen. */
+  readonly setRoom: (patch: Partial<RoomSettingsValues>) => void;
+  /** A phone shows the room's settings as the screen shares them. */
+  readonly mirrorRoom: (room: RoomSettingsValues) => void;
 }
 
-const platformSettingsContext =
-  createContext<PlatformSettingsContextValue | null>(null);
+type RuntimeContext =
+  | { readonly mode: "owner"; readonly owner: OwnerApi }
+  | {
+      readonly mode: "inherited";
+      readonly status: PlatformSettingsRuntimeStatus;
+    };
+
+const runtimeContext = createContext<RuntimeContext | null>(null);
 
 export interface PlatformSettingsRuntimeProps {
   children: ReactNode;
-  persistence?: PlatformSettingsPersistence;
+  /** The surface this page is when it is not embedded by the platform. */
+  surface: PlatformSurface;
 }
 
-export interface PlatformSettingsBoundaryProps {
-  children: ReactNode;
-  persistence?: PlatformSettingsPersistence;
-}
-
-export interface PlatformSettingsOwnerApi {
-  settings: PlatformSettingsSnapshot;
-  setSettings: (
-    next:
-      | PlatformSettingsSnapshot
-      | ((current: PlatformSettingsSnapshot) => PlatformSettingsSnapshot),
-  ) => void;
-  updateSettings: (patch: PartialPlatformSettings) => void;
-  updateAudio: (patch: Partial<PlatformAudioSettings>) => void;
-  updateAccessibility: (
-    patch: Partial<PlatformSettingsSnapshot["accessibility"]>,
-  ) => void;
-  updateFeedback: (
-    patch: Partial<PlatformSettingsSnapshot["feedback"]>,
-  ) => void;
-  updatePreviewControllers: (
-    patch: Partial<PlatformSettingsSnapshot["previewControllers"]>,
-  ) => void;
-}
-
-export interface PlatformAudioSettingsApi extends PlatformAudioSettings {
-  getEffectiveVolume: (category: "music" | "sfx") => number;
-  isReadOnly: boolean;
-  setMasterVolume: (volume: number) => void;
-  setMusicVolume: (volume: number) => void;
-  setSfxVolume: (volume: number) => void;
-}
-
-const getInitialMode = (
-  persistence: PlatformSettingsPersistence,
-): PlatformSettingsMode => {
-  if (typeof window === "undefined") {
-    return persistence === "local" ? "owner" : "default";
-  }
-
-  if (window.parent !== window) {
-    return "inherited";
-  }
-
-  return persistence === "local" ? "owner" : "default";
-};
-
-const createDefaultContextValue = (): PlatformSettingsContextValue => ({
-  mode: "default",
-  status: "ready",
-  settings: DEFAULT_PLATFORM_SETTINGS,
-  setSettings: () => {
-    throw new Error(
-      'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
-    );
-  },
-  updateSettings: () => {
-    throw new Error(
-      'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
-    );
-  },
-});
-
-export function PlatformSettingsRuntime({
-  children,
-  persistence = "none",
-}: PlatformSettingsRuntimeProps) {
-  const mode = getInitialMode(persistence);
-  const [settings, setSettingsState] = useState<PlatformSettingsSnapshot>(() =>
-    mode === "owner"
-      ? readPersistedPlatformSettings()
-      : DEFAULT_PLATFORM_SETTINGS,
-  );
-  const [status, setStatus] = useState<PlatformSettingsRuntimeStatus>(() =>
-    mode === "inherited" ? "waiting" : "ready",
+function OwnerRuntime({ children, surface }: PlatformSettingsRuntimeProps) {
+  const [device, setDeviceState] = useState(readDeviceSettings);
+  const [room, setRoomState] = useState(() =>
+    surface === "screen"
+      ? normalizeRoomSettings(readStored(ROOM_STORAGE_KEY))
+      : DEFAULT_ROOM_SETTINGS,
   );
 
   useEffect(() => {
-    if (mode === "owner") {
-      setStatus("ready");
-      setSettingsState(readPersistedPlatformSettings());
-      return;
-    }
-
-    setSettingsState(DEFAULT_PLATFORM_SETTINGS);
-    setStatus(mode === "inherited" ? "waiting" : "ready");
-  }, [mode]);
-
-  useEffect(() => {
-    if (mode !== "owner") {
-      return;
-    }
-
-    persistPlatformSettings(settings);
-  }, [mode, settings]);
-
-  useEffect(() => {
-    if (mode !== "owner" || typeof window === "undefined") {
-      return;
-    }
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.storageArea !== window.localStorage) {
-        return;
-      }
-
-      if (event.key !== null && event.key !== PLATFORM_SETTINGS_STORAGE_KEY) {
-        return;
-      }
-
-      setSettingsState(readPersistedPlatformSettings());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === DEVICE_STORAGE_KEY)
+        setDeviceState(readDeviceSettings());
+      if (
+        surface === "screen" &&
+        (event.key === null || event.key === ROOM_STORAGE_KEY)
+      )
+        setRoomState(normalizeRoomSettings(readStored(ROOM_STORAGE_KEY)));
     };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [surface]);
 
-    window.addEventListener("storage", handleStorage);
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, [mode]);
-
-  useEffect(() => {
-    if (mode !== "inherited") {
-      return;
-    }
-
-    return initializeInheritedPlatformSettingsBridge({
-      applySettings: (nextSettings) => {
-        setSettingsState(nextSettings);
-        setStatus("ready");
-      },
-      onBridgeUnavailable: () => {
-        setStatus("ready");
-      },
-      onBridgeAttached: (origin) => {
-        emitAirJamDevRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
-          message: "Embedded runtime bound platform settings bridge port",
-          level: "info",
-          data: {
-            origin,
-            state: "waiting_ready",
-            transport: "bridge_port",
-          },
-        });
-      },
-      onSettingsReadyRequested: (trustedParentOrigin) => {
-        emitAirJamDevRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
-          message:
-            "Embedded runtime requested initial platform settings from parent",
-          level: "info",
-          data: {
-            trustedParentOrigin,
-            state: "waiting_ready",
-          },
-        });
-      },
-      onSnapshotApplied: (transport, settings) => {
-        emitAirJamDevRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
-          message: "Embedded runtime applied platform settings snapshot",
-          level: "info",
-          data: {
-            transport,
-            state: "ready",
-            settings,
-          },
-        });
-      },
+  const setDevice = useCallback((patch: Partial<DeviceSettingsValues>) => {
+    setDeviceState((current) => {
+      const next = normalizeDeviceSettings({ ...current, ...patch });
+      writeStored(DEVICE_STORAGE_KEY, next);
+      return next;
     });
-  }, [mode]);
+  }, []);
 
-  const setSettings = useCallback<PlatformSettingsContextValue["setSettings"]>(
-    (next) => {
-      if (mode !== "owner") {
+  const setRoom = useCallback(
+    (patch: Partial<RoomSettingsValues>) => {
+      if (surface !== "screen")
         throw new Error(
-          'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
+          "A phone cannot hold the room's settings; ask the screen to change them.",
         );
-      }
-
-      setSettingsState((current) =>
-        typeof next === "function" ? next(current) : next,
-      );
+      setRoomState((current) => {
+        const next = normalizeRoomSettings({ ...current, ...patch });
+        writeStored(ROOM_STORAGE_KEY, next);
+        return next;
+      });
     },
-    [mode],
+    [surface],
   );
 
-  const updateSettings = useCallback<
-    PlatformSettingsContextValue["updateSettings"]
-  >(
-    (patch) => {
-      if (mode !== "owner") {
-        throw new Error(
-          'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
-        );
-      }
-
-      setSettingsState((current) => mergePlatformSettings(current, patch));
+  const mirrorRoom = useCallback(
+    (shared: RoomSettingsValues) => {
+      if (surface !== "phone")
+        throw new Error("A screen holds the room's settings itself.");
+      setRoomState(normalizeRoomSettings(shared));
     },
-    [mode],
+    [surface],
   );
 
-  const value = useMemo<PlatformSettingsContextValue>(
+  const resolved = useMemo(
+    () => resolveSurfaceSettings({ surface, device, room }),
+    [surface, device, room],
+  );
+  useEffect(() => {
+    publishSurfaceSettings(resolved);
+    presentSurfaceSettings(resolved);
+  }, [resolved]);
+
+  const value = useMemo<RuntimeContext>(
     () => ({
-      mode,
-      status,
-      settings,
-      setSettings,
-      updateSettings,
+      mode: "owner",
+      owner: { surface, device, room, setDevice, setRoom, mirrorRoom },
     }),
-    [mode, settings, setSettings, status, updateSettings],
+    [surface, device, room, setDevice, setRoom, mirrorRoom],
   );
-
   return (
-    <platformSettingsContext.Provider value={value}>
-      {children}
-    </platformSettingsContext.Provider>
+    <runtimeContext.Provider value={value}>{children}</runtimeContext.Provider>
   );
 }
 
-export function PlatformSettingsBoundary({
-  children,
-  persistence = "local",
-}: PlatformSettingsBoundaryProps) {
-  const existingContext = useContext(platformSettingsContext);
+function InheritedRuntime({ children }: { children: ReactNode }) {
+  const [status, setStatus] =
+    useState<PlatformSettingsRuntimeStatus>("waiting");
 
-  if (existingContext) {
-    return children;
-  }
+  useEffect(
+    () =>
+      initializeInheritedPlatformSettingsBridge({
+        applySettings: (settings) => {
+          publishSurfaceSettings(settings);
+          presentSurfaceSettings(settings);
+          setStatus("ready");
+        },
+        onBridgeUnavailable: () => setStatus("ready"),
+        onBridgeAttached: (origin) => {
+          emitAirJamDevRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
+            message: "Embedded runtime bound platform settings bridge port",
+            level: "info",
+            data: { origin, state: "waiting_ready", transport: "bridge_port" },
+          });
+        },
+      }),
+    [],
+  );
 
+  const value = useMemo<RuntimeContext>(
+    () => ({ mode: "inherited", status }),
+    [status],
+  );
   return (
-    <PlatformSettingsRuntime persistence={persistence}>
-      {children}
-    </PlatformSettingsRuntime>
+    <runtimeContext.Provider value={value}>{children}</runtimeContext.Provider>
   );
 }
 
-export function usePlatformSettings(): PlatformSettingsOwnerApi {
-  const context = useContext(platformSettingsContext);
-
-  if (!context) {
-    throw new Error(
-      "usePlatformSettings must be used within a PlatformSettingsRuntime",
-    );
-  }
-
-  if (context.mode !== "owner") {
-    throw new Error(
-      'usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell.',
-    );
-  }
-
-  return {
-    settings: context.settings,
-    setSettings: context.setSettings,
-    updateSettings: context.updateSettings,
-    updateAudio: (patch) => context.updateSettings({ audio: patch }),
-    updateAccessibility: (patch) =>
-      context.updateSettings({ accessibility: patch }),
-    updateFeedback: (patch) => context.updateSettings({ feedback: patch }),
-    updatePreviewControllers: (patch) =>
-      context.updateSettings({ previewControllers: patch }),
-  };
+/**
+ * The platform's settings for a page the platform owns: its device's settings
+ * and, on a screen, the room's, stored on the device. Every platform page
+ * mounts one at its root, including a phone page the platform shows inside
+ * its own screen.
+ */
+export function PlatformSettingsRuntime(props: PlatformSettingsRuntimeProps) {
+  return <OwnerRuntime {...props} />;
 }
 
-export function useOptionalPlatformSettingsOwnerApi(): PlatformSettingsOwnerApi | null {
-  const context = useContext(platformSettingsContext);
-
-  if (!context || context.mode !== "owner") {
-    return null;
-  }
-
-  return {
-    settings: context.settings,
-    setSettings: context.setSettings,
-    updateSettings: context.updateSettings,
-    updateAudio: (patch) => context.updateSettings({ audio: patch }),
-    updateAccessibility: (patch) =>
-      context.updateSettings({ accessibility: patch }),
-    updateFeedback: (patch) => context.updateSettings({ feedback: patch }),
-    updatePreviewControllers: (patch) =>
-      context.updateSettings({ previewControllers: patch }),
-  };
+/**
+ * A game's settings boundary: inside a platform page it uses that page's
+ * settings; in a platform frame it inherits what the platform resolved for
+ * it; on its own it owns its device's settings.
+ */
+export function PlatformSettingsBoundary(props: PlatformSettingsRuntimeProps) {
+  const existing = useContext(runtimeContext);
+  if (existing) return props.children;
+  return window.parent !== window ? (
+    <InheritedRuntime>{props.children}</InheritedRuntime>
+  ) : (
+    <OwnerRuntime {...props} />
+  );
 }
 
-export function useInheritedPlatformSettings(): Readonly<PlatformSettingsSnapshot> {
-  const context = useContext(platformSettingsContext);
-
-  if (!context) {
+/** The settings a platform page owns and changes; only an owning page has it. */
+export function usePlatformSettings(): OwnerApi {
+  const context = useContext(runtimeContext);
+  if (context?.mode !== "owner")
     throw new Error(
-      "useInheritedPlatformSettings must be used within a PlatformSettingsRuntime",
+      "usePlatformSettings needs the page that owns its settings: mount <PlatformSettingsRuntime> at the top of the platform shell.",
     );
-  }
+  return context.owner;
+}
 
-  return context.settings;
+/** The owning page's settings, or null where the page inherits them. */
+export function useOptionalPlatformSettings(): OwnerApi | null {
+  const context = useContext(runtimeContext);
+  return context?.mode === "owner" ? context.owner : null;
 }
 
 export function usePlatformSettingsRuntimeStatus(): PlatformSettingsRuntimeStatus {
-  return useContext(platformSettingsContext)?.status ?? "ready";
-}
-
-export function usePlatformAudioSettings(): PlatformAudioSettingsApi {
-  const context =
-    useContext(platformSettingsContext) ?? createDefaultContextValue();
-  const { audio } = context.settings;
-  const isReadOnly = context.mode !== "owner";
-
-  const setAudioSetting = useCallback(
-    (patch: Partial<PlatformAudioSettings>) => {
-      if (context.mode !== "owner") {
-        throw new Error(
-          'Platform audio settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
-        );
-      }
-
-      context.updateSettings({ audio: patch });
-    },
-    [context],
-  );
-
-  return {
-    ...audio,
-    isReadOnly,
-    getEffectiveVolume: (category) => getEffectiveAudioVolume(audio, category),
-    setMasterVolume: (volume) => setAudioSetting({ masterVolume: volume }),
-    setMusicVolume: (volume) => setAudioSetting({ musicVolume: volume }),
-    setSfxVolume: (volume) => setAudioSetting({ sfxVolume: volume }),
-  };
-}
-
-export function useResolvedPlatformSettingsSnapshot(): PlatformSettingsSnapshot {
-  return (
-    useContext(platformSettingsContext)?.settings ?? DEFAULT_PLATFORM_SETTINGS
-  );
+  const context = useContext(runtimeContext);
+  return context?.mode === "inherited" ? context.status : "ready";
 }

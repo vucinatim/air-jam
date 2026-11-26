@@ -2,9 +2,9 @@ import { Howl, Howler } from "howler";
 import type { SoundConfig } from "../core/assets";
 import type { SoundSignalPayload } from "../room-protocol";
 import {
-  DEFAULT_PLATFORM_SETTINGS,
-  type PlatformAudioSettings,
-  getEffectiveAudioVolume,
+  DEFAULT_SURFACE_SETTINGS,
+  effectiveAudioVolume,
+  type AirJamAudioLevels,
 } from "../settings/platform-settings";
 
 export type SoundCategory = NonNullable<SoundConfig["category"]>;
@@ -58,8 +58,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     number,
     { soundId: string; category: SoundCategory }
   > = new Map();
-  private audioSettings: PlatformAudioSettings =
-    DEFAULT_PLATFORM_SETTINGS.audio;
+  private audioSettings: AirJamAudioLevels = DEFAULT_SURFACE_SETTINGS.audio;
 
   constructor(manifest?: SoundManifest) {
     if (manifest) {
@@ -115,7 +114,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
       this.categories.set(key, category);
 
       const baseVolume = config.volume ?? 1;
-      const effectiveVolume = getEffectiveAudioVolume(
+      const effectiveVolume = effectiveAudioVolume(
         this.audioSettings,
         category,
       );
@@ -133,7 +132,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     });
   }
 
-  public applyPlatformAudioSettings(settings: PlatformAudioSettings) {
+  public applyAudioLevels(settings: AirJamAudioLevels) {
     this.audioSettings = settings;
 
     this.activeSoundIds.forEach((info, howlSoundId) => {
@@ -144,7 +143,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
 
       const config = this.manifest[info.soundId];
       const baseVolume = config?.volume ?? 1;
-      const effectiveVolume = getEffectiveAudioVolume(settings, info.category);
+      const effectiveVolume = effectiveAudioVolume(settings, info.category);
       sound.volume(baseVolume * effectiveVolume, howlSoundId);
     });
 
@@ -152,7 +151,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
       const category = this.categories.get(soundId) ?? "sfx";
       const config = this.manifest[soundId];
       const baseVolume = config?.volume ?? 1;
-      const effectiveVolume = getEffectiveAudioVolume(settings, category);
+      const effectiveVolume = effectiveAudioVolume(settings, category);
       sound.volume(baseVolume * effectiveVolume);
     });
   }
@@ -201,10 +200,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     const category = this.getCategory(id);
     const config = this.manifest[id];
     const baseVolume = config?.volume ?? 1;
-    const effectiveVolume = getEffectiveAudioVolume(
-      this.audioSettings,
-      category,
-    );
+    const effectiveVolume = effectiveAudioVolume(this.audioSettings, category);
     const finalVolume =
       volume !== undefined
         ? volume * effectiveVolume
@@ -315,7 +311,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     const category = this.getCategory(id);
     const fromVolume =
       (config?.volume ?? 1) *
-      getEffectiveAudioVolume(this.audioSettings, category);
+      effectiveAudioVolume(this.audioSettings, category);
 
     sound.fade(fromVolume, 0, durationMs, soundId);
     globalThis.setTimeout(() => {

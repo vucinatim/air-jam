@@ -112,10 +112,10 @@ describe("AudioManager", () => {
       },
     });
 
-    audio.applyPlatformAudioSettings({
-      masterVolume: 0.4,
-      musicVolume: 0.5,
-      sfxVolume: 0.25,
+    audio.applyAudioLevels({
+      volume: 0.4,
+      music: 0.5,
+      effects: 0.25,
     });
 
     expect(mocked.howlVolume).toHaveBeenNthCalledWith(1, 0.05);
@@ -148,10 +148,10 @@ describe("AudioManager", () => {
     expect(audio.getCategory("hit")).toBe("sfx");
 
     mocked.howlVolume.mockClear();
-    audio.applyPlatformAudioSettings({
-      masterVolume: 1,
-      musicVolume: 1,
-      sfxVolume: 1,
+    audio.applyAudioLevels({
+      volume: 1,
+      music: 1,
+      effects: 1,
     });
     expect(mocked.howlVolume).not.toHaveBeenCalled();
 

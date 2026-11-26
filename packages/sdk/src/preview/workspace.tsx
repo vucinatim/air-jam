@@ -30,7 +30,7 @@ import {
 } from "../runtime/local-players";
 import type { LocalSeat, LocalSeatGame } from "../runtime/local-seats";
 import { fixedControllerOrientationContext } from "../runtime/runtime-owner-contexts";
-import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
+import { useAirJamSurfaceSettings } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
   getResizedPreviewBounds,
@@ -203,8 +203,7 @@ export const PreviewControllerWorkspace = ({
   });
   useProvideLocalSeats(localPlayersGame ? null : localSeats);
   useServeLocalSeats(localPlayersGame, localSeats);
-  const platformSettings = useResolvedPlatformSettingsSnapshot();
-  const activeOpacity = platformSettings.previewControllers.activeOpacity;
+  const activeOpacity = useAirJamSurfaceSettings().controllerOpacity;
   const sortedSessions = useMemo(
     () => [...sessions].sort((left, right) => left.ordinal - right.ordinal),
     [sessions],

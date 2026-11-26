@@ -147,6 +147,7 @@ export const useHostRuntimeApi = (
       setRuntimeState: runtime.setRuntimeState,
       sendSignal: runtime.sendSignal,
       removeController: runtime.removeController,
+      setRoomLocked: runtime.setRoomLocked,
       resetRoom: runtime.resetRoom,
       room,
       simulation: clock,

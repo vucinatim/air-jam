@@ -44,6 +44,7 @@ import {
   hostRuntimeFault,
 } from "../runtime/host-runtime-fault";
 import { HostTimeline } from "../runtime/host-timeline";
+import { publishEmbeddedGameSettings } from "../settings/embedded-game-settings";
 import type { AirJamConfig } from "./config";
 import {
   getReconnectingPlayerIds,
@@ -69,6 +70,7 @@ import type {
 import { awaitRoomConfirmation, type RoomActionAck } from "./room-action-ack";
 import {
   HostSettings,
+  isValidSettingValue,
   type AirJamSettings,
   type SettingsValues,
 } from "./settings";
@@ -129,6 +131,23 @@ export type HostObservationCapture = NonNullable<
 
 /** Closes that mean this host's room is gone, so it opens a new one. */
 /** Calls `changed` whenever the room's seats or link change. */
+/**
+ * The values the embedding platform launched this game with, as far as the
+ * game still declares them: a remembered value the game no longer accepts
+ * reads as its default instead of stopping the game.
+ */
+const launchSettings = (
+  declaration: AirJamSettings,
+  launch: SettingsValues | undefined,
+): SettingsValues =>
+  Object.fromEntries(
+    Object.entries(launch ?? {}).filter(
+      ([name, value]) =>
+        Object.hasOwn(declaration, name) &&
+        isValidSettingValue(declaration[name], value),
+    ),
+  );
+
 const followRoom = (room: HostRoom, changed: () => void): (() => void) => {
   const releases = [room.on("seats", changed), room.on("status", changed)];
   return () => {
@@ -195,6 +214,7 @@ export class HostRuntime {
   private options: HostRuntimeOptions;
   private running = false;
   private currentRoom: HostRoom | null = null;
+  private roomLocked = false;
   private releaseRoom: (() => void) | null = null;
   /** The room's copies from this page's first welcome, taken back once. */
   private restorable: ReadonlyMap<string, ChannelCopy> | null = null;
@@ -218,10 +238,13 @@ export class HostRuntime {
     dependencies: HostRuntimeDependencies,
     options: HostRuntimeOptions = {},
   ) {
-    this.hostSettings = new HostSettings(
-      dependencies.settings,
-      options.settings,
-    );
+    this.hostSettings = new HostSettings(dependencies.settings, {
+      ...launchSettings(
+        dependencies.settings ?? {},
+        dependencies.environment.launchSettings,
+      ),
+      ...options.settings,
+    });
     this.settings = Object.freeze({
       declaration: this.hostSettings.declaration,
       read: this.hostSettings.read,
@@ -434,11 +457,21 @@ export class HostRuntime {
       }),
     );
     this.publishPresentation();
+    // The platform that frames this game draws its settings and changes them.
+    const stopOfferingSettings = this.environment.embedded
+      ? publishEmbeddedGameSettings({
+          declaration: this.hostSettings.declaration,
+          read: this.hostSettings.read,
+          subscribe: this.hostSettings.subscribe,
+          update: this.updateSettings,
+        })
+      : () => {};
     const stopRecordingActions = this.recordActions();
     this.openRoom(this.environment.readResume());
     this.refreshJoinUrl();
     this.stopFrames = this.startFrames();
     return () => {
+      stopOfferingSettings();
       this.clips.dispose();
       for (const stop of stopRecordingActions) stop();
       this.stopFrames?.();
@@ -516,7 +549,6 @@ export class HostRuntime {
     this.currentRoom?.signal("sound", sound, targetId);
   };
 
-  /** Frees a player's seat and closes their phone for good. */
   /** Frees a player's seat; settles once the room confirms it left. */
   readonly removeController = (
     controllerId: string,
@@ -540,6 +572,12 @@ export class HostRuntime {
     });
     room.remove(controllerId);
     return confirmation;
+  };
+
+  /** Whether new players may join; held across reconnects and new rooms. */
+  readonly setRoomLocked = (locked: boolean): void => {
+    this.roomLocked = locked;
+    this.currentRoom?.configure({ locked });
   };
 
   /** Applies an action a recorded match applied between steps, as a replay does. */
@@ -634,6 +672,7 @@ export class HostRuntime {
     });
     this.currentRoom = room;
     this.restorable = null;
+    if (this.roomLocked) room.configure({ locked: true });
     for (const [channel, { document, options }] of this.published)
       room.publish(channel, document, options);
     const releases = [

@@ -72,11 +72,10 @@ describe("sdk export surface", () => {
     expect("useAudioRuntimeControls" in sdk).toBe(true);
     expect("PlatformSettingsRuntime" in sdk).toBe(true);
     expect("usePlatformSettings" in sdk).toBe(true);
-    expect("useInheritedPlatformSettings" in sdk).toBe(true);
-    expect("usePlatformAudioSettings" in sdk).toBe(true);
-    expect("getEffectiveAudioVolume" in sdk).toBe(false);
+    expect("useAirJamSurfaceSettings" in sdk).toBe(true);
+    expect("effectiveAudioVolume" in sdk).toBe(false);
     expect("PlatformSettingsBoundary" in sdk).toBe(false);
-    expect("DEFAULT_PLATFORM_SETTINGS" in sdk).toBe(true);
+    expect("platformSettingPlacements" in sdk).toBe(true);
     expect("useAudioSettings" in sdk).toBe(false);
   });
 

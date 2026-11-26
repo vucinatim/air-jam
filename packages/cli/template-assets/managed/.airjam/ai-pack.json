@@ -112,7 +112,7 @@
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
       "size": 31510,
-      "sha256": "63b66676c7578d37635e542f45149cd67dcc42229c1bf9364280ae76583586ec"
+      "sha256": "372390766ea2b59606bbc1d727b2a115aaa9e3c3c232cf9d588b69e7abdfb7ed"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
@@ -141,8 +141,8 @@
     {
       "path": "docs/airjam/generated/settings.md",
       "kind": "docs-generated",
-      "size": 6382,
-      "sha256": "7bc2d29c42826085640a503601d6a2b42c9b2c7bdfc38908d58cd82b1ccf5c47"
+      "size": 6969,
+      "sha256": "4efa779c48aa0701be630bb71a6bce1703525b670e84d0344c3c6376ceca9009"
     },
     {
       "path": "docs/airjam/generated/state-and-rendering.md",
@@ -159,8 +159,8 @@
     {
       "path": "docs/airjam/generated/ui-components.md",
       "kind": "docs-generated",
-      "size": 7216,
-      "sha256": "72347505e23c4546a55b23bbbb8a9d9135bd3789facf3e3f2afa5c1238e24d24"
+      "size": 6660,
+      "sha256": "deb0b2a40901dd29e40bd8c7aa6bbf8e447e09385b84e476cce098e5ce1c5cfc"
     },
     {
       "path": "docs/airjam/generated/unified-dev-logs.md",
@@ -183,8 +183,8 @@
     {
       "path": "docs/airjam/preview-controllers.md",
       "kind": "docs-local",
-      "size": 4813,
-      "sha256": "0844ba6b2ebd62250affeae6f3b1c6eabb439d1a8f77145916705b45198f0d16"
+      "size": 4812,
+      "sha256": "24f60c5fd41d25b12cdcef99d64a995b89e4266ee6b4378d56a8057e9386b5bc"
     },
     {
       "path": "docs/airjam/r3f-3d-scene.md",
@@ -205,5 +205,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "a0d1bae880328b8aa950e163f5f544c3f12005df2cde4dd2a9437b6695a5183b"
+  "contentDigest": "a7692dc78a5ffd0dc0cfd6f36c375bd9465bbfdc5203ccd7b9d36b5d569a9ac0"
 }

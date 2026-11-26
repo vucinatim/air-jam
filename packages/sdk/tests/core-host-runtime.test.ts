@@ -37,6 +37,10 @@ import {
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { hostObservationSchema } from "../src/runtime/contracts/observation";
+import {
+  watchEmbeddedGameSettings,
+  type EmbeddedGameSettingsSource,
+} from "../src/settings/embedded-game-settings";
 import { createMemoryEnvironment } from "./fixtures/host-environment";
 
 const config = resolveAirJamConfig({
@@ -186,6 +190,38 @@ describe("core host runtime", () => {
       expect(openRoom).toHaveBeenCalledTimes(embedded ? 1 : 2);
       stop();
     }
+  });
+
+  it("offers an embedded game's settings to its platform, starting from remembered values it still accepts", async () => {
+    const { environment } = createMemoryEnvironment();
+    const runtime = new HostRuntime({
+      config,
+      store: createConnectionStore(),
+      environment: {
+        ...environment,
+        embedded: { joinUrl: "https://play.test/join" },
+        launchSettings: { knockback: 1.4, rounds: 99, removed: true },
+      },
+      stores: [],
+      settings: defineAirJamSettings({
+        knockback: setting.number({ default: 1, min: 0.5, max: 2, live: true }),
+        rounds: setting.number({ default: 3, min: 1, max: 5, step: 1 }),
+      }),
+    });
+    const offers: Array<EmbeddedGameSettingsSource | null> = [];
+    const unwatch = watchEmbeddedGameSettings((source) => offers.push(source));
+    const stop = runtime.start();
+    const source = offers.at(-1);
+    if (!source) throw new Error("The host offered no settings.");
+    expect(source.read()).toEqual({
+      values: { knockback: 1.4, rounds: 3 },
+      revision: 0,
+    });
+    source.update({ knockback: 0.8 }, 0);
+    expect(runtime.settings.read().values.knockback).toBe(0.8);
+    stop();
+    expect(offers.at(-1)).toBeNull();
+    unwatch();
   });
 
   it("asks for a host grant only when it opens its own room, never through its parent's", async () => {

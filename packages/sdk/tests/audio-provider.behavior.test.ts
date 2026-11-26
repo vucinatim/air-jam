@@ -4,7 +4,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HostSessionProvider } from "../src/context/session-providers";
-import { DEFAULT_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
+import { createBridgeHandshake } from "../src/runtime/iframe-bridge";
+import { DEFAULT_SURFACE_SETTINGS } from "../src/settings/platform-settings";
 
 const howlerCtx = {
   state: "running" as "running" | "suspended",
@@ -235,18 +236,17 @@ describe("AudioRuntime", () => {
     });
 
     const hooks = await import("../src/audio/hooks");
-    const { PlatformSettingsRuntime } =
+    const { PlatformSettingsBoundary } =
       await import("../src/settings/platform-settings-runtime");
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        null,
-        createElement(
+      createElement(PlatformSettingsBoundary, {
+        surface: "screen",
+        children: createElement(
           HostSessionProvider,
           null,
           createElement(hooks.AudioRuntime, { manifest, children }),
         ),
-      );
+      });
 
     try {
       const runtime = renderHook(
@@ -267,26 +267,33 @@ describe("AudioRuntime", () => {
 
       expect(runtime.result.current.status).toBe("idle");
 
+      const channel = new MessageChannel();
       act(() => {
         window.dispatchEvent(
           new MessageEvent("message", {
             origin: "https://platform.example",
             source: mockParent as unknown as MessageEventSource,
             data: {
-              type: "AIRJAM_SETTINGS_SYNC",
+              type: "AIRJAM_BRIDGE_INIT",
               payload: {
-                settings: {
-                  ...DEFAULT_PLATFORM_SETTINGS,
-                  audio: {
-                    masterVolume: 0.2,
-                    musicVolume: 0.05,
-                    sfxVolume: 0.9,
-                  },
-                },
+                handshake: createBridgeHandshake({
+                  sdkVersion: "1.0.0",
+                  runtimeKind: "arcade-runtime",
+                }),
               },
             },
+            ports: [channel.port2],
           }),
         );
+      });
+      channel.port1.postMessage({
+        type: "AIRJAM_SETTINGS_SYNC",
+        payload: {
+          settings: {
+            ...DEFAULT_SURFACE_SETTINGS,
+            audio: { volume: 0.2, music: 0.05, effects: 0.9 },
+          },
+        },
       });
 
       await waitFor(() => {

@@ -8,6 +8,7 @@ import {
   parseAirJamBridgeInitMessage,
 } from "../src/runtime/iframe-bridge";
 import { requestEmbeddingRoom } from "../src/runtime/room-bridge";
+import { DEFAULT_SURFACE_SETTINGS } from "../src/settings/platform-settings";
 
 describe("iframe bridge contracts", () => {
   it("creates a valid v2 handshake for arcade runtime bridge", () => {
@@ -45,23 +46,7 @@ describe("iframe bridge contracts", () => {
       isAirJamSettingsSyncMessage({
         type: AIRJAM_SETTINGS_SYNC,
         payload: {
-          settings: {
-            audio: {
-              masterVolume: 0.5,
-              musicVolume: 0.8,
-              sfxVolume: 1,
-            },
-            accessibility: {
-              reducedMotion: false,
-              highContrast: true,
-            },
-            feedback: {
-              hapticsEnabled: true,
-            },
-            previewControllers: {
-              activeOpacity: 0.9,
-            },
-          },
+          settings: DEFAULT_SURFACE_SETTINGS,
         },
       }),
     ).toBe(true);
@@ -71,9 +56,8 @@ describe("iframe bridge contracts", () => {
         type: AIRJAM_SETTINGS_SYNC,
         payload: {
           settings: {
-            audio: {
-              masterVolume: "loud",
-            },
+            ...DEFAULT_SURFACE_SETTINGS,
+            audio: { volume: "loud", music: 1, effects: 1 },
           },
         },
       }),
