@@ -182,7 +182,7 @@ const entries = {
     section: "controls",
     surfaces: ["screen"],
     setting: setting.number({
-      label: "On-screen controller opacity",
+      label: "Controller opacity",
       default: 100,
       min: 35,
       max: 100,
