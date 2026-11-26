@@ -303,8 +303,8 @@ The shared preview leaf currently provides:
 4. `buildPreviewControllerUrl` and related launch helpers for explicit launch control
 
 For games without joystick input, floating window chrome supports per-window portrait/landscape rotation,
-and active preview-window opacity is driven by the shared platform settings
-runtime so hosts can persist their preferred transparency level.
+and active preview-window opacity is the room's on-screen controller opacity
+setting (`controllerOpacity`), so the host's preferred transparency persists.
 
 Keep preview usage inside explicit host-side UI and do not treat it as a stable
 root-SDK contract yet.
@@ -375,55 +375,41 @@ const ControllerShell = () => (
 Host-side `sendSignal("TOAST", ...)` now pairs directly with `useControllerToasts()`.
 Mount `AudioRuntime` once per runtime surface, then call `useAudio()` only below that boundary.
 
-## Shared Platform Settings
+## Platform Settings
 
-Shared user settings are platform-owned and inherited by embedded games.
+Air Jam's own settings (sound, vibration, interface size, reduced motion,
+contrast, room admission, on-screen controllers) are declared once in the SDK
+(`platformSettingPlacements`), each with its owner: the device it is on, or the
+room's screen for everyone. The platform draws them in its settings dialog and
+is their only writer. A game never draws a settings screen.
 
-Mount `PlatformSettingsRuntime` once in the platform shell when you want a persisted owner runtime.
-`airjam.Host` / `airjam.Controller` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
+Games get them for free: the SDK applies sound levels to `useAudio()`,
+vibration to controller haptics, and reduced motion, contrast and interface
+size to the document (`data-aj-reduce-motion`, `data-aj-increase-contrast`,
+`--aj-interface-scale` and a scaled root font size). A game that wants to adapt
+further reads the resolved values with `useAirJamSurfaceSettings()`:
 
 ```tsx
-import {
-  PlatformSettingsRuntime,
-  useInheritedPlatformSettings,
-  usePlatformAudioSettings,
-} from "@air-jam/sdk";
+import { useAirJamSurfaceSettings } from "@air-jam/sdk";
 
-const ArcadeShell = () => (
-  <PlatformSettingsRuntime persistence="local">
-    <SettingsPanel />
-    <EmbeddedGame />
-  </PlatformSettingsRuntime>
-);
-
-const SettingsPanel = () => {
-  const { masterVolume, setMasterVolume } = usePlatformAudioSettings();
-  return (
-    <button onClick={() => setMasterVolume(masterVolume === 0 ? 1 : 0)}>
-      Toggle Master
-    </button>
-  );
-};
-
-const EmbeddedGame = () => {
-  const settings = useInheritedPlatformSettings();
-  return <pre>{JSON.stringify(settings.audio, null, 2)}</pre>;
+const Shake = ({ children }: { children: ReactNode }) => {
+  const { reduceMotion } = useAirJamSurfaceSettings();
+  return <div className={reduceMotion ? undefined : "shake"}>{children}</div>;
 };
 ```
 
-Rules:
+A game's own declared settings (`defineAirJamSettings`) appear in the same
+dialog under the game's name, drawn from their declaration: give each a
+`label`, a `description` and, for numbers, a `unit`.
 
-1. mount `PlatformSettingsRuntime persistence="local"` once in the platform shell
-2. let `airjam.Host` and `airjam.Controller` supply the in-game settings boundary automatically
-3. embedded games inherit platform settings read-only
-4. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
-5. do not recreate feature-specific global settings stores alongside this runtime
+`airjam.Host` and `airjam.Controller` mount the settings runtime themselves.
+Only a platform shell mounts `PlatformSettingsRuntime` with its `surface`
+(`"screen"` or `"phone"`) and changes values through `usePlatformSettings()`.
 
 ## Optional UI Primitives
 
-`@air-jam/sdk/ui` exports optional presentational primitives (`Button`, `Slider`, `PlayerAvatar`, `VolumeControls`).
+`@air-jam/sdk/ui` exports optional presentational primitives (`Button`, `Slider`, `PlayerAvatar`).
 These components are lifecycle-free: they do not open rooms or own host/controller session state.
-`VolumeControls` reads and writes the shared audio slice through the platform settings runtime.
 
 ## Networked State (Host Source of Truth)
 

@@ -17,7 +17,6 @@ export * from "./components/runtime-shell-header";
 export * from "./components/surface-viewport";
 export * from "./components/ui/button";
 export * from "./components/ui/slider";
-export * from "./components/volume-controls";
 export * from "./hooks/use-controller-lifecycle-intents";
 export * from "./hooks/use-controller-lifecycle-permissions";
 export * from "./hooks/use-controller-shell-status";

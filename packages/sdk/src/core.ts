@@ -95,6 +95,7 @@ export {
   setting,
   type AirJamSettings,
   type AirJamSettingsValues,
+  type SettingsValues,
 } from "./core/settings";
 export {
   SimulationClock,

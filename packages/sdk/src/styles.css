@@ -92,3 +92,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Reduce motion from the platform's settings: transitions settle almost at once. */
+[data-aj-reduce-motion] *,
+[data-aj-reduce-motion] *::before,
+[data-aj-reduce-motion] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
+}

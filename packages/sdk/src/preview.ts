@@ -43,6 +43,7 @@ export {
   AIR_JAM_LOCAL_SEAT_QUERY_PARAM,
   isLocalSeatReadyMessage,
   isLocalSeatRelayedMessage,
+  localSeatBindingsSchema,
   localSeatMessages,
   localSeatQuerySchema,
   localSeatRelaySchema,
@@ -50,5 +51,6 @@ export {
   relayLocalSeatInput,
   sendLocalSeatOperation,
   type LocalSeat,
+  type LocalSeatBindings,
   type LocalSeatGame,
 } from "./runtime/local-seats";

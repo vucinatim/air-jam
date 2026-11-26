@@ -79,6 +79,7 @@ export function ReplayRuntime({
     setRuntimeState: runtime.setRuntimeState,
     sendSignal: runtime.sendSignal,
     removeController: runtime.removeController,
+    setRoomLocked: runtime.setRoomLocked,
     resetRoom: runtime.resetRoom,
     room: runtime.room,
     simulation: runtime.simulation,

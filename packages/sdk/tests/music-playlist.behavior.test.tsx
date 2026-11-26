@@ -19,22 +19,8 @@ vi.mock("../src/audio/hooks", () => ({
 
 vi.mock("../src/settings/platform-settings-runtime", () => ({
   usePlatformSettingsRuntimeStatus: () => mocked.platformSettingsStatus,
-  useResolvedPlatformSettingsSnapshot: () => ({
-    audio: {
-      masterVolume: 0.5,
-      musicVolume: 0.25,
-      sfxVolume: 0.8,
-    },
-    accessibility: {
-      highContrast: false,
-      reducedMotion: false,
-    },
-    feedback: {
-      hapticsEnabled: true,
-    },
-    previewControllers: {
-      activeOpacity: 1,
-    },
+  useAirJamSurfaceSettings: () => ({
+    audio: { volume: 0.5, music: 0.25, effects: 0.8 },
   }),
 }));
 

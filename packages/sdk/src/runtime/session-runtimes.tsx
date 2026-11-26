@@ -303,7 +303,7 @@ export const AirJamHostRuntime = ({
       value={fixedControllerOrientation ?? null}
     >
       <HostSessionProvider {...providerProps} captureStage={captureStage}>
-        <PlatformSettingsBoundary>
+        <PlatformSettingsBoundary surface="screen">
           <HostRuntimeOwner
             roomId={roomId}
             onPlayerJoin={onPlayerJoin}
@@ -341,7 +341,7 @@ export const AirJamControllerRuntime = ({
       value={fixedControllerOrientation ?? null}
     >
       <ControllerSessionProvider {...providerProps}>
-        <PlatformSettingsBoundary>
+        <PlatformSettingsBoundary surface="phone">
           <ControllerRuntimeOwner
             roomId={roomId}
             nickname={nickname}

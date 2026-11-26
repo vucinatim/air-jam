@@ -28,7 +28,9 @@ export const pongSettings = defineAirJamSettings({
     max: 720,
     step: 10,
     live: true,
-    description: "Ball speed in pixels per second.",
+    label: "Ball speed",
+    unit: "px/s",
+    description: "How fast the ball crosses the court.",
   }),
 });
 export type PongSettings = AirJamSettingsValues<typeof pongSettings>;
@@ -43,7 +45,16 @@ Keys are lower camel case. `setting.number` requires `default`, `min` and
 Steps are multiples of zero. `setting.boolean` requires a boolean `default`.
 `setting.choice` takes a nonempty string tuple in `options` and a `default`
 from that tuple; its value type is the union of those strings.
-Every kind accepts `description` and `live`, which defaults to false.
+Every kind accepts `label`, `description` and `live`, which defaults to false;
+numbers also accept a `unit` shown after the value.
+
+The Air Jam platform draws every declared setting in its settings dialog under
+the game's name, on the big screen and on phones, with no settings code in the
+game: a switch for a boolean, segments for a few choices or steps, and a slider
+with its value for a range. A setting that is not `live` waits for the game to
+restart. The screen remembers the values per game and launches the game with
+them next time; a remembered value the game no longer accepts reads as its
+default.
 `defineAirJamSettings` validates defaults immediately. The description returned
 by `airjam.inspect_game` includes these descriptors in `declaration.settings`.
 

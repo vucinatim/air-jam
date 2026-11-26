@@ -43,14 +43,8 @@ export type __assert_platform_settings_runtime_exported = AssertTrue<
 export type __assert_use_platform_settings_exported = AssertTrue<
   Has<"usePlatformSettings">
 >;
-export type __assert_use_inherited_platform_settings_exported = AssertTrue<
-  Has<"useInheritedPlatformSettings">
->;
-export type __assert_use_platform_audio_settings_exported = AssertTrue<
-  Has<"usePlatformAudioSettings">
->;
-export type __assert_get_effective_audio_volume_not_exported = AssertFalse<
-  Has<"getEffectiveAudioVolume">
+export type __assert_use_air_jam_surface_settings_exported = AssertTrue<
+  Has<"useAirJamSurfaceSettings">
 >;
 export type __assert_controller_session_hook_not_exported = AssertFalse<
   Has<"useControllerSession">

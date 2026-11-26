@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { AirJamConfig } from "../core/config";
 import type { AirJamHostEnvironment } from "../core/environment";
+import {
+  airJamSettingsValuesSchema,
+  type SettingsValues,
+} from "../core/settings";
 import { updateDevBrowserLogContext } from "../dev/browser-log-sink";
 import type { RoomCode } from "../protocol";
 import { roomCodeSchema } from "../room-protocol";
@@ -38,6 +42,18 @@ const readRequestedRoomId = (): RoomCode | null => {
   return parsed.success ? parsed.data : null;
 };
 
+/** The game's setting values its embedding platform launched it with (`aj_settings`). */
+const readLaunchSettings = (): SettingsValues | undefined => {
+  const raw = new URLSearchParams(window.location.search).get("aj_settings");
+  if (!raw) return undefined;
+  try {
+    const parsed = airJamSettingsValuesSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 /** The host environment of a browser page: its URL, session storage and frames. */
 export const createBrowserHostEnvironment = (
   config: AirJamConfig,
@@ -55,6 +71,7 @@ export const createBrowserHostEnvironment = (
           localControllerUrl: embedded.localControllerUrl,
         }
       : null,
+    launchSettings: embedded ? readLaunchSettings() : undefined,
     requestedRoomId: readRequestedRoomId(),
     runMode: detectRunMode(),
     defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
