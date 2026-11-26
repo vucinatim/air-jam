@@ -93,6 +93,8 @@ interface OwnerApi {
   readonly setDevice: (patch: Partial<DeviceSettingsValues>) => void;
   /** Only the screen holds the room's settings; a phone asks the screen. */
   readonly setRoom: (patch: Partial<RoomSettingsValues>) => void;
+  /** A phone shows the room's settings as the screen shares them. */
+  readonly mirrorRoom: (room: RoomSettingsValues) => void;
 }
 
 type RuntimeContext =
@@ -108,26 +110,15 @@ export interface PlatformSettingsRuntimeProps {
   children: ReactNode;
   /** The surface this page is when it is not embedded by the platform. */
   surface: PlatformSurface;
-  /**
-   * A phone's view of the room's settings, as the screen shares them. A
-   * screen holds its own.
-   */
-  room?: RoomSettingsValues | null;
 }
 
-function OwnerRuntime({
-  children,
-  surface,
-  room: sharedRoom,
-}: PlatformSettingsRuntimeProps) {
+function OwnerRuntime({ children, surface }: PlatformSettingsRuntimeProps) {
   const [device, setDeviceState] = useState(readDeviceSettings);
-  const [ownRoom, setOwnRoom] = useState(() =>
+  const [room, setRoomState] = useState(() =>
     surface === "screen"
       ? normalizeRoomSettings(readStored(ROOM_STORAGE_KEY))
       : DEFAULT_ROOM_SETTINGS,
   );
-  const room =
-    surface === "screen" ? ownRoom : (sharedRoom ?? DEFAULT_ROOM_SETTINGS);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -137,7 +128,7 @@ function OwnerRuntime({
         surface === "screen" &&
         (event.key === null || event.key === ROOM_STORAGE_KEY)
       )
-        setOwnRoom(normalizeRoomSettings(readStored(ROOM_STORAGE_KEY)));
+        setRoomState(normalizeRoomSettings(readStored(ROOM_STORAGE_KEY)));
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -157,11 +148,20 @@ function OwnerRuntime({
         throw new Error(
           "A phone cannot hold the room's settings; ask the screen to change them.",
         );
-      setOwnRoom((current) => {
+      setRoomState((current) => {
         const next = normalizeRoomSettings({ ...current, ...patch });
         writeStored(ROOM_STORAGE_KEY, next);
         return next;
       });
+    },
+    [surface],
+  );
+
+  const mirrorRoom = useCallback(
+    (shared: RoomSettingsValues) => {
+      if (surface !== "phone")
+        throw new Error("A screen holds the room's settings itself.");
+      setRoomState(normalizeRoomSettings(shared));
     },
     [surface],
   );
@@ -178,9 +178,9 @@ function OwnerRuntime({
   const value = useMemo<RuntimeContext>(
     () => ({
       mode: "owner",
-      owner: { surface, device, room, setDevice, setRoom },
+      owner: { surface, device, room, setDevice, setRoom, mirrorRoom },
     }),
-    [surface, device, room, setDevice, setRoom],
+    [surface, device, room, setDevice, setRoom, mirrorRoom],
   );
   return (
     <runtimeContext.Provider value={value}>{children}</runtimeContext.Provider>

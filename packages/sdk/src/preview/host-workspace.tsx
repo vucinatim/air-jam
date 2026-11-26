@@ -46,7 +46,9 @@ export const HostPreviewControllerWorkspace = ({
       onActiveOpacityChange={
         platformSettings?.surface === "screen"
           ? (controllerOpacity) =>
-              platformSettings.setRoom({ controllerOpacity })
+              platformSettings.setRoom({
+                controllerOpacity: Math.round(controllerOpacity * 100),
+              })
           : undefined
       }
       className={cn("right-4 bottom-4 z-60 sm:right-6 sm:bottom-6", className)}

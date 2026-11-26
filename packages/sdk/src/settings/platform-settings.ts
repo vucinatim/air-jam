@@ -38,10 +38,10 @@ const entries = {
     surfaces: BOTH,
     setting: setting.number({
       label: "Volume",
-      default: 1,
+      default: 100,
       min: 0,
-      max: 1,
-      step: 0.01,
+      max: 100,
+      step: 1,
       unit: "%",
     }),
   },
@@ -51,10 +51,10 @@ const entries = {
     surfaces: BOTH,
     setting: setting.number({
       label: "Music",
-      default: 0.8,
+      default: 80,
       min: 0,
-      max: 1,
-      step: 0.01,
+      max: 100,
+      step: 1,
       unit: "%",
     }),
   },
@@ -64,10 +64,10 @@ const entries = {
     surfaces: ["screen"],
     setting: setting.number({
       label: "Effects",
-      default: 1,
+      default: 100,
       min: 0,
-      max: 1,
-      step: 0.01,
+      max: 100,
+      step: 1,
       unit: "%",
     }),
   },
@@ -87,10 +87,10 @@ const entries = {
     surfaces: ["phone"],
     setting: setting.number({
       label: "Controller sounds",
-      default: 1,
+      default: 100,
       min: 0,
-      max: 1,
-      step: 0.01,
+      max: 100,
+      step: 1,
       unit: "%",
       description: "Clicks and effects your controller plays.",
     }),
@@ -183,10 +183,10 @@ const entries = {
     surfaces: ["screen"],
     setting: setting.number({
       label: "On-screen controller opacity",
-      default: 1,
-      min: 0.35,
-      max: 1,
-      step: 0.01,
+      default: 100,
+      min: 35,
+      max: 100,
+      step: 1,
       unit: "%",
       description: "How solid live controllers look over the game.",
     }),
@@ -319,6 +319,8 @@ const INTERFACE_SCALE: Record<DeviceSettingsValues["interfaceSize"], number> = {
   Larger: 1.3,
 };
 
+const fraction = (percent: number) => percent / 100;
+
 export const resolveSurfaceSettings = ({
   surface,
   device,
@@ -332,17 +334,17 @@ export const resolveSurfaceSettings = ({
     audio: Object.freeze(
       surface === "screen"
         ? {
-            volume: room.muted ? 0 : room.volume,
-            music: room.music,
-            effects: room.effects,
+            volume: room.muted ? 0 : fraction(room.volume),
+            music: fraction(room.music),
+            effects: fraction(room.effects),
           }
-        : { volume: device.controllerSounds, music: 1, effects: 1 },
+        : { volume: fraction(device.controllerSounds), music: 1, effects: 1 },
     ),
     vibration: device.vibration,
     reduceMotion: device.reduceMotion,
     increaseContrast: device.increaseContrast,
     interfaceScale: INTERFACE_SCALE[device.interfaceSize],
-    controllerOpacity: room.controllerOpacity,
+    controllerOpacity: fraction(room.controllerOpacity),
     buttonHints: room.buttonHints,
   });
 
