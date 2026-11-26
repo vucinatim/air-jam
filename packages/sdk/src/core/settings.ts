@@ -2,7 +2,11 @@ import { z } from "zod";
 
 const common = {
   live: z.boolean().default(false),
+  /** What the settings dialog calls it; derived from the key when absent. */
+  label: z.string().min(1).max(48).optional(),
   description: z.string().min(1).optional(),
+  /** Shown after a number's value, such as "s", "×" or "%". */
+  unit: z.string().min(1).max(8).optional(),
 };
 const numberSettingSchema = z
   .object({
@@ -71,6 +75,7 @@ export const setting = {
     options: Choices;
     default: Choices[number];
     live?: boolean;
+    label?: string;
     description?: string;
   }) => ({ ...options, kind: "choice" }) as const,
 };
@@ -80,7 +85,7 @@ type SettingDeclaration =
   | ReturnType<typeof setting.boolean>
   | ReturnType<typeof setting.choice>;
 
-function validValue(
+export function isValidSettingValue(
   definition: AirJamSettings[string],
   value: unknown,
 ): boolean {
@@ -115,7 +120,7 @@ export function defineAirJamSettings<
           `AJ_SETTING_INVALID: ${name} must be a lower camel case id.`,
         );
       const definition = airJamSettingSchema.parse(input);
-      if (!validValue(definition, definition.default))
+      if (!isValidSettingValue(definition, definition.default))
         throw new Error(
           `AJ_SETTING_INVALID: ${name} needs a default in its range and on its step, or among its options.`,
         );
@@ -189,7 +194,7 @@ export class HostSettings {
         throw new Error(
           `AJ_SETTING_UNKNOWN: ${name} is not declared by this game.`,
         );
-      if (!validValue(definition, value))
+      if (!isValidSettingValue(definition, value))
         throw new Error(
           `AJ_SETTING_INVALID: ${name} must match its declared type, range and step or options.`,
         );

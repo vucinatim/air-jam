@@ -19,30 +19,34 @@ export {
   type MusicPlaylistProps,
 } from "./audio/music";
 export {
-  DEFAULT_PLATFORM_SETTINGS,
-  DEFAULT_ROOM_PLATFORM_SETTINGS,
-  toRoomPlatformSettingsSnapshot,
+  DEFAULT_DEVICE_SETTINGS,
+  DEFAULT_ROOM_SETTINGS,
+  DEFAULT_SURFACE_SETTINGS,
+  normalizeRoomSettings,
+  phoneMayChangeSettings,
+  platformSettingDefinitions,
+  platformSettingPlacements,
+  resolveSurfaceSettings,
 } from "./settings/platform-settings";
 export type {
-  PartialRoomPlatformSettingsPatch,
-  PlatformAccessibilitySettings,
-  PlatformAudioSettings,
-  PlatformFeedbackSettings,
-  PlatformPreviewControllerSettings,
-  PlatformSettings,
-  PlatformSettingsPersistence,
-  PlatformSettingsSnapshot,
-  RoomPlatformSettingsSnapshot,
+  AirJamAudioLevels,
+  AirJamSurfaceSettings,
+  DeviceSettingsValues,
+  PlatformSettingKey,
+  PlatformSettingPlacement,
+  PlatformSettingScope,
+  PlatformSettingSection,
+  PlatformSurface,
+  RoomSettingsValues,
 } from "./settings/platform-settings";
 export {
   PlatformSettingsRuntime,
-  useInheritedPlatformSettings,
-  usePlatformAudioSettings,
+  useAirJamSurfaceSettings,
+  useOptionalPlatformSettings,
   usePlatformSettings,
-  type PlatformAudioSettingsApi,
-  type PlatformSettingsOwnerApi,
   type PlatformSettingsRuntimeProps,
 } from "./settings/platform-settings-runtime";
+export { readAirJamSurfaceSettings } from "./settings/surface-settings";
 
 export {
   onAirJamDiagnostic,

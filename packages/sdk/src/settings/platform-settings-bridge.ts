@@ -1,14 +1,26 @@
+import type { SettingsValues } from "../core/settings";
 import {
   AIRJAM_BRIDGE_INIT,
+  AIRJAM_GAME_SETTINGS,
+  AIRJAM_GAME_SETTINGS_RESULT,
+  AIRJAM_GAME_SETTINGS_UPDATE,
   AIRJAM_SETTINGS_READY,
   AIRJAM_SETTINGS_SYNC,
+  airJamGameSettingsMessageSchema,
+  airJamGameSettingsResultMessageSchema,
+  airJamGameSettingsUpdateMessageSchema,
   createBridgeHandshake,
   isAirJamSettingsReadyMessage,
   isAirJamSettingsSyncMessage,
   parseAirJamBridgeInitMessage,
+  type AirJamGameSettingsState,
 } from "../runtime/iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "../runtime/sdk-version";
-import type { PlatformSettingsSnapshot } from "./platform-settings";
+import {
+  watchEmbeddedGameSettings,
+  type EmbeddedGameSettingsSource,
+} from "./embedded-game-settings";
+import type { AirJamSurfaceSettings } from "./platform-settings";
 
 const createSettingsBridgeInitMessage = () => ({
   type: AIRJAM_BRIDGE_INIT,
@@ -23,7 +35,7 @@ const createSettingsBridgeInitMessage = () => ({
   },
 });
 
-const createSettingsSyncMessage = (settings: PlatformSettingsSnapshot) => ({
+const createSettingsSyncMessage = (settings: AirJamSurfaceSettings) => ({
   type: AIRJAM_SETTINGS_SYNC,
   payload: {
     settings,
@@ -42,7 +54,7 @@ export interface ParentPlatformSettingsBridgeEventMap {
   snapshotFlushed: {
     phase: "initial" | "update";
     transports: PlatformSettingsBridgeTransport[];
-    settings: PlatformSettingsSnapshot;
+    settings: AirJamSurfaceSettings;
   };
 }
 
@@ -52,12 +64,19 @@ export interface ParentPlatformSettingsBridgeOptions {
     event: T,
     payload: ParentPlatformSettingsBridgeEventMap[T],
   ): void;
+  /** The framed game's declared settings as they change; null when it has none or left. */
+  onGameSettings?(state: AirJamGameSettingsState | null): void;
 }
 
 export interface ParentPlatformSettingsBridgeController {
   attach(targetWindow: Window, targetOrigin: string): void;
   detach(): void;
-  updateSettings(settings: PlatformSettingsSnapshot): void;
+  updateSettings(settings: AirJamSurfaceSettings): void;
+  /** Changes the framed game's settings; rejects with the game's refusal. */
+  updateGameSettings(
+    patch: SettingsValues,
+    expectedRevision: number,
+  ): Promise<void>;
   handleMessage(
     event: MessageEvent<unknown>,
     targetWindow: Window | null,
@@ -76,15 +95,22 @@ export const createParentPlatformSettingsBridge = (
   const emit = options.onEvent ?? noop;
 
   let state: PlatformSettingsBridgeState = "unbound";
-  let latestSettings: PlatformSettingsSnapshot | null = null;
+  let latestSettings: AirJamSurfaceSettings | null = null;
   let bridgePort: MessagePort | null = null;
   let targetWindow: Window | null = null;
   let targetOrigin: string | null = null;
   let initialSnapshotFlushed = false;
   let childReadySeen = false;
+  let requestCount = 0;
+  const pendingUpdates = new Map<
+    string,
+    { resolve: () => void; reject: (error: Error) => void }
+  >();
 
-  const setState = (next: PlatformSettingsBridgeState) => {
-    state = next;
+  const settlePending = (message: string) => {
+    for (const pending of pendingUpdates.values())
+      pending.reject(new Error(message));
+    pendingUpdates.clear();
   };
 
   const closeBridgePort = () => {
@@ -99,6 +125,23 @@ export const createParentPlatformSettingsBridge = (
     }
 
     bridgePort = null;
+    settlePending("The game left before its settings changed.");
+    options.onGameSettings?.(null);
+  };
+
+  const handlePortMessage = (event: MessageEvent<unknown>) => {
+    const state = airJamGameSettingsMessageSchema.safeParse(event.data);
+    if (state.success) {
+      options.onGameSettings?.(state.data.payload);
+      return;
+    }
+    const result = airJamGameSettingsResultMessageSchema.safeParse(event.data);
+    if (!result.success) return;
+    const pending = pendingUpdates.get(result.data.payload.requestId);
+    if (!pending) return;
+    pendingUpdates.delete(result.data.payload.requestId);
+    if (result.data.payload.ok) pending.resolve();
+    else pending.reject(new Error(result.data.payload.error));
   };
 
   const flushSnapshot = (phase: "initial" | "update") => {
@@ -136,11 +179,12 @@ export const createParentPlatformSettingsBridge = (
 
       const channel = createMessageChannel();
       bridgePort = channel.port1;
+      bridgePort.addEventListener("message", handlePortMessage);
       bridgePort.start?.();
       targetWindow = nextTargetWindow;
       targetOrigin = nextTargetOrigin;
       initialSnapshotFlushed = false;
-      setState(childReadySeen ? "ready" : "waiting_ready");
+      state = childReadySeen ? "ready" : "waiting_ready";
 
       nextTargetWindow.postMessage(
         createSettingsBridgeInitMessage(),
@@ -163,7 +207,7 @@ export const createParentPlatformSettingsBridge = (
       targetOrigin = null;
       initialSnapshotFlushed = false;
       childReadySeen = false;
-      setState("unbound");
+      state = "unbound";
     },
 
     updateSettings(settings) {
@@ -171,6 +215,20 @@ export const createParentPlatformSettingsBridge = (
       if (state === "ready") {
         flushSnapshot(initialSnapshotFlushed ? "update" : "initial");
       }
+    },
+
+    updateGameSettings(patch, expectedRevision) {
+      const port = bridgePort;
+      if (!port) return Promise.reject(new Error("The game is not running."));
+      requestCount += 1;
+      const requestId = String(requestCount);
+      return new Promise<void>((resolve, reject) => {
+        pendingUpdates.set(requestId, { resolve, reject });
+        port.postMessage({
+          type: AIRJAM_GAME_SETTINGS_UPDATE,
+          payload: { requestId, patch, expectedRevision },
+        });
+      });
     },
 
     handleMessage(event, expectedTargetWindow, expectedTargetOrigin) {
@@ -191,7 +249,7 @@ export const createParentPlatformSettingsBridge = (
       }
 
       childReadySeen = true;
-      setState("ready");
+      state = "ready";
       emit("settingsReady", {
         state,
       });
@@ -206,22 +264,66 @@ export const createParentPlatformSettingsBridge = (
 };
 
 export interface InheritedPlatformSettingsBridgeOptions {
-  applySettings: (settings: PlatformSettingsSnapshot) => void;
+  applySettings: (settings: AirJamSurfaceSettings) => void;
   onBridgeUnavailable?: () => void;
   onBridgeAttached?: (origin: string) => void;
-  onSettingsReadyRequested?: (origin: string) => void;
-  onSnapshotApplied?: (
-    transport: PlatformSettingsBridgeTransport,
-    settings: PlatformSettingsSnapshot,
-  ) => void;
 }
+
+const refusal = (error: unknown) =>
+  String(error instanceof Error ? error.message : error).slice(0, 1024) ||
+  "The game refused the change.";
+
+/**
+ * Serves the game's own declared settings to the platform over the bridge
+ * port: their current state whenever it changes, and each requested change.
+ */
+export const serveEmbeddedGameSettings = (port: MessagePort): (() => void) => {
+  let current: EmbeddedGameSettingsSource | null = null;
+  let unsubscribeSource = () => {};
+  const unwatch = watchEmbeddedGameSettings((source) => {
+    unsubscribeSource();
+    unsubscribeSource = () => {};
+    current = source;
+    const post = () =>
+      port.postMessage({
+        type: AIRJAM_GAME_SETTINGS,
+        payload: source
+          ? { declaration: source.declaration, ...source.read() }
+          : null,
+      });
+    post();
+    if (source) unsubscribeSource = source.subscribe(post);
+  });
+  const handleUpdate = (event: MessageEvent<unknown>) => {
+    const parsed = airJamGameSettingsUpdateMessageSchema.safeParse(event.data);
+    if (!parsed.success) return;
+    const { requestId, patch, expectedRevision } = parsed.data.payload;
+    try {
+      if (!current) throw new Error("This game declares no settings.");
+      current.update(patch, expectedRevision);
+      port.postMessage({
+        type: AIRJAM_GAME_SETTINGS_RESULT,
+        payload: { requestId, ok: true },
+      });
+    } catch (error) {
+      port.postMessage({
+        type: AIRJAM_GAME_SETTINGS_RESULT,
+        payload: { requestId, ok: false, error: refusal(error) },
+      });
+    }
+  };
+  port.addEventListener("message", handleUpdate as EventListener);
+  return () => {
+    unwatch();
+    unsubscribeSource();
+    port.removeEventListener("message", handleUpdate as EventListener);
+  };
+};
 
 export const initializeInheritedPlatformSettingsBridge = ({
   applySettings,
   onBridgeUnavailable,
   onBridgeAttached,
-  onSettingsReadyRequested,
-  onSnapshotApplied,
 }: InheritedPlatformSettingsBridgeOptions): (() => void) => {
   if (typeof window === "undefined" || window.parent === window) {
     onBridgeUnavailable?.();
@@ -242,29 +344,20 @@ export const initializeInheritedPlatformSettingsBridge = ({
 
   let bridgePortCleanup: (() => void) | null = null;
 
-  const applySnapshot = (
-    transport: PlatformSettingsBridgeTransport,
-    settings: PlatformSettingsSnapshot,
-  ) => {
-    onSnapshotApplied?.(transport, settings);
-    applySettings(settings);
-  };
-
   const bindBridgePort = (port: MessagePort) => {
     bridgePortCleanup?.();
 
     const handlePortMessage = (event: MessageEvent<unknown>) => {
-      if (!isAirJamSettingsSyncMessage(event.data)) {
-        return;
-      }
-
-      applySnapshot("bridge_port", event.data.payload.settings);
+      if (isAirJamSettingsSyncMessage(event.data))
+        applySettings(event.data.payload.settings);
     };
 
     port.addEventListener("message", handlePortMessage as EventListener);
+    const stopServing = serveEmbeddedGameSettings(port);
     port.start();
 
     bridgePortCleanup = () => {
+      stopServing();
       port.removeEventListener("message", handlePortMessage as EventListener);
       try {
         port.close();
@@ -275,7 +368,7 @@ export const initializeInheritedPlatformSettingsBridge = ({
     };
   };
 
-  const handleInitMessage = (event: MessageEvent<unknown>) => {
+  const handleMessage = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) {
       return;
     }
@@ -284,8 +377,12 @@ export const initializeInheritedPlatformSettingsBridge = ({
       return;
     }
 
-    const initMessage = parseAirJamBridgeInitMessage(event.data);
-    if (!initMessage) {
+    if (isAirJamSettingsSyncMessage(event.data)) {
+      applySettings(event.data.payload.settings);
+      return;
+    }
+
+    if (!parseAirJamBridgeInitMessage(event.data)) {
       return;
     }
 
@@ -298,24 +395,7 @@ export const initializeInheritedPlatformSettingsBridge = ({
     bindBridgePort(bridgePort);
   };
 
-  const handleFallbackMessage = (event: MessageEvent<unknown>) => {
-    if (event.source !== window.parent) {
-      return;
-    }
-
-    if (event.origin !== trustedParentOrigin) {
-      return;
-    }
-
-    if (!isAirJamSettingsSyncMessage(event.data)) {
-      return;
-    }
-
-    applySnapshot("window_postmessage", event.data.payload.settings);
-  };
-
-  window.addEventListener("message", handleInitMessage);
-  window.addEventListener("message", handleFallbackMessage);
+  window.addEventListener("message", handleMessage);
 
   if (typeof window.parent.postMessage === "function") {
     window.parent.postMessage(
@@ -325,12 +405,10 @@ export const initializeInheritedPlatformSettingsBridge = ({
       },
       trustedParentOrigin,
     );
-    onSettingsReadyRequested?.(trustedParentOrigin);
   }
 
   return () => {
-    window.removeEventListener("message", handleInitMessage);
-    window.removeEventListener("message", handleFallbackMessage);
+    window.removeEventListener("message", handleMessage);
     bridgePortCleanup?.();
   };
 };

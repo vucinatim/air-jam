@@ -1,8 +1,5 @@
 import { z } from "zod";
 import type { SeatView } from "../room-protocol";
-import type { RoomPlatformSettingsSnapshot } from "../settings/platform-settings";
-
-export { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
 
 export type ControllerInputPayload = Record<string, unknown>;
 
@@ -29,5 +26,3 @@ export const playerProfilePatchSchema = z
   .strict();
 
 export type PlayerProfilePatch = z.infer<typeof playerProfilePatchSchema>;
-
-export type ControllerRoomSettingsState = RoomPlatformSettingsSnapshot;

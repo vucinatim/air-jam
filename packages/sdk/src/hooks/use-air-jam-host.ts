@@ -149,6 +149,8 @@ export interface AirJamHostApi {
    * room confirms the player left.
    */
   removeController: (controllerId: string) => Promise<RoomActionAck>;
+  /** Whether new players may join this host's room; held across reconnects. */
+  setRoomLocked: (locked: boolean) => void;
   /**
    * Ends the room for every device and opens a fresh empty room for this
    * host; settles once the new room welcomes it.
@@ -187,6 +189,7 @@ export type AirJamHostRuntimeControls = Pick<
   | "setRuntimeState"
   | "sendSignal"
   | "removeController"
+  | "setRoomLocked"
   | "resetRoom"
   | "room"
   | "simulation"

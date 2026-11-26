@@ -11,6 +11,7 @@ import type {
 } from "../room-session/phone-room-session";
 import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
+import type { SettingsValues } from "./settings";
 
 /**
  * A host's place in its room, kept across reloads where the platform allows:
@@ -49,6 +50,8 @@ export interface AirJamHostEnvironment {
    * it; the join link is the shell's.
    */
   readonly embedded: { joinUrl?: string; localControllerUrl?: string } | null;
+  /** Setting values the embedding platform launched the game with. */
+  readonly launchSettings?: SettingsValues;
   /** A room code the surrounding page asked for, such as `?room=`; a local server honours it. */
   readonly requestedRoomId: RoomCode | null;
   readonly runMode: RunMode;

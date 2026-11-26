@@ -75,7 +75,7 @@ The preview workspace supports:
 4. minimize and close controls
 5. per-window portrait or landscape rotation from the title bar for games without joystick input
 
-6. shared active-opacity control for preview windows through platform settings
+6. active-window opacity from the room's on-screen controller opacity setting
 7. a room controller roster with source-aware `Kick` controls for manual local recovery
 8. a `Reset room` escape hatch that creates a fresh empty room and reloads the local host page so gameplay state and controller state both reset cleanly
 

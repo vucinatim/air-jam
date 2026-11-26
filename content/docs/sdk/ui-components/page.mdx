@@ -7,7 +7,6 @@ import {
   SurfaceViewport,
   PlayerAvatar,
   RoomQrCode,
-  VolumeControls,
   Button,
   Slider,
 } from "@air-jam/sdk/ui";
@@ -130,31 +129,6 @@ Avoid:
 - treating it like a centered black-bar stage wrapper
 - depending on arbitrary raw `px` values for most of the UI chrome when a normal Tailwind scale utility would do
 - assuming native OS/browser lock is guaranteed everywhere
-
----
-
-### `VolumeControls`
-
-Ready-made control block for master/music/sfx sliders bound to the shared platform settings runtime.
-
-```tsx
-import { VolumeControls } from "@air-jam/sdk/ui";
-
-<VolumeControls className="w-full max-w-xs" compact />;
-```
-
-Mount it below `PlatformSettingsRuntime` when you want slider changes to persist in Arcade and inherit into embedded games.
-
-Props:
-
-- `className?: string`
-- `compact?: boolean`
-
-Use it for:
-
-- in-game settings overlays
-- pause/settings drawers
-- Arcade- or platform-owned settings panels
 
 ---
 

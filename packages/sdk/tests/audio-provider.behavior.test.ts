@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HostSessionProvider } from "../src/context/session-providers";
-import { DEFAULT_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
+import { DEFAULT_SURFACE_SETTINGS } from "../src/settings/platform-settings";
 
 const howlerCtx = {
   state: "running" as "running" | "suspended",
@@ -238,15 +238,14 @@ describe("AudioRuntime", () => {
     const { PlatformSettingsRuntime } =
       await import("../src/settings/platform-settings-runtime");
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        null,
-        createElement(
+      createElement(PlatformSettingsRuntime, {
+        surface: "screen",
+        children: createElement(
           HostSessionProvider,
           null,
           createElement(hooks.AudioRuntime, { manifest, children }),
         ),
-      );
+      });
 
     try {
       const runtime = renderHook(
@@ -276,12 +275,8 @@ describe("AudioRuntime", () => {
               type: "AIRJAM_SETTINGS_SYNC",
               payload: {
                 settings: {
-                  ...DEFAULT_PLATFORM_SETTINGS,
-                  audio: {
-                    masterVolume: 0.2,
-                    musicVolume: 0.05,
-                    sfxVolume: 0.9,
-                  },
+                  ...DEFAULT_SURFACE_SETTINGS,
+                  audio: { volume: 0.2, music: 0.05, effects: 0.9 },
                 },
               },
             },

@@ -1,374 +1,62 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  DEFAULT_PLATFORM_SETTINGS,
-  PLATFORM_SETTINGS_STORAGE_KEY,
+  DEFAULT_ROOM_SETTINGS,
+  type PlatformSurface,
+  type RoomSettingsValues,
 } from "../src/settings/platform-settings";
 import {
-  PlatformSettingsBoundary,
   PlatformSettingsRuntime,
-  useInheritedPlatformSettings,
-  usePlatformAudioSettings,
   usePlatformSettings,
-  usePlatformSettingsRuntimeStatus,
 } from "../src/settings/platform-settings-runtime";
+import { readAirJamSurfaceSettings } from "../src/settings/surface-settings";
+
+const owner = (surface: PlatformSurface, room?: RoomSettingsValues) =>
+  renderHook(() => usePlatformSettings(), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(PlatformSettingsRuntime, { surface, room, children }),
+  });
 
 describe("PlatformSettingsRuntime", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
     window.localStorage.clear();
+    document.documentElement.removeAttribute("style");
   });
 
-  it("uses deterministic defaults without persisted storage", () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children,
-      });
-
-    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
-
-    expect(result.current.settings).toEqual(DEFAULT_PLATFORM_SETTINGS);
-  });
-
-  it("keeps default settings and in-memory updates usable when browser storage is denied", () => {
-    vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
-      throw new Error("Storage denied");
+  it("lets a screen change the room's sound and its own display, remembered on the device and seen by the whole page", () => {
+    const { result } = owner("screen");
+    act(() => {
+      result.current.setRoom({ muted: true, music: 0.4 });
+      result.current.setDevice({ interfaceSize: "Large", reduceMotion: true });
     });
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children,
-      });
-    const { result, unmount } = renderHook(() => usePlatformAudioSettings(), {
-      wrapper,
+
+    expect(readAirJamSurfaceSettings()).toMatchObject({
+      audio: { volume: 0, music: 0.4 },
+      interfaceScale: 1.15,
+      reduceMotion: true,
     });
-    expect(result.current.musicVolume).toBe(
-      DEFAULT_PLATFORM_SETTINGS.audio.musicVolume,
+    expect(document.documentElement.style.fontSize).toBe("115%");
+    expect(document.documentElement.hasAttribute("data-aj-reduce-motion")).toBe(
+      true,
     );
-    act(() => result.current.setMusicVolume(0.35));
-    expect(result.current.musicVolume).toBe(0.35);
-    unmount();
+    expect(owner("screen").result.current.room.music).toBe(0.4);
   });
 
-  it("persists owner updates to local storage", async () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children,
-      });
-
-    const { result } = renderHook(() => usePlatformAudioSettings(), {
-      wrapper,
+  it("gives a phone its own controller sounds and the room's values as the screen shares them", () => {
+    const { result } = owner("phone", {
+      ...DEFAULT_ROOM_SETTINGS,
+      volume: 0.2,
+      controllerOpacity: 0.5,
     });
+    act(() => result.current.setDevice({ controllerSounds: 0.3 }));
 
-    act(() => {
-      result.current.setMusicVolume(0.35);
+    expect(readAirJamSurfaceSettings()).toMatchObject({
+      audio: { volume: 0.3 },
+      controllerOpacity: 0.5,
     });
-
-    await waitFor(() => {
-      expect(
-        JSON.parse(
-          window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY) ?? "null",
-        ),
-      ).toEqual({
-        ...DEFAULT_PLATFORM_SETTINGS,
-        audio: {
-          ...DEFAULT_PLATFORM_SETTINGS.audio,
-          musicVolume: 0.35,
-        },
-      });
-    });
-  });
-
-  it("persists preview-controller settings alongside other shared defaults", async () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children,
-      });
-
-    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
-
-    act(() => {
-      result.current.updateSettings({
-        previewControllers: {
-          activeOpacity: 0.74,
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(
-        JSON.parse(
-          window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY) ?? "null",
-        ),
-      ).toEqual({
-        ...DEFAULT_PLATFORM_SETTINGS,
-        previewControllers: {
-          activeOpacity: 0.74,
-        },
-      });
-    });
-  });
-
-  it("syncs owner runtimes from platform settings storage changes in other windows", async () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children,
-      });
-
-    const { result } = renderHook(() => usePlatformAudioSettings(), {
-      wrapper,
-    });
-
-    act(() => {
-      window.localStorage.setItem(
-        PLATFORM_SETTINGS_STORAGE_KEY,
-        JSON.stringify({
-          ...DEFAULT_PLATFORM_SETTINGS,
-          audio: {
-            masterVolume: 0.45,
-            musicVolume: 0.25,
-            sfxVolume: 0.9,
-          },
-        }),
-      );
-
-      window.dispatchEvent(
-        new StorageEvent("storage", {
-          key: PLATFORM_SETTINGS_STORAGE_KEY,
-          newValue: window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY),
-          storageArea: window.localStorage,
-        }),
-      );
-    });
-
-    await waitFor(() => {
-      expect(result.current.masterVolume).toBe(0.45);
-      expect(result.current.musicVolume).toBe(0.25);
-      expect(result.current.sfxVolume).toBe(0.9);
-    });
-  });
-
-  it("throws when inherited settings are read outside a runtime", () => {
-    expect(() => renderHook(() => useInheritedPlatformSettings())).toThrow(
-      "useInheritedPlatformSettings must be used within a PlatformSettingsRuntime",
-    );
-  });
-
-  it("throws when owner settings are requested from an inherited runtime", () => {
-    const originalParent = window.parent;
-    Object.defineProperty(window, "parent", {
-      configurable: true,
-      value: {},
-    });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: "https://platform.example/arcade",
-    });
-
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, null, children);
-
-    try {
-      expect(() =>
-        renderHook(() => usePlatformSettings(), { wrapper }),
-      ).toThrow(
-        'usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell.',
-      );
-    } finally {
-      Object.defineProperty(window, "parent", {
-        configurable: true,
-        value: originalParent,
-      });
-      Object.defineProperty(document, "referrer", {
-        configurable: true,
-        value: "",
-      });
-    }
-  });
-
-  it("replaces inherited settings atomically from iframe sync messages", async () => {
-    const originalParent = window.parent;
-    const mockParent = {
-      postMessage: vi.fn(),
-    };
-    Object.defineProperty(window, "parent", {
-      configurable: true,
-      value: mockParent,
-    });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: "https://platform.example/arcade",
-    });
-
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, null, children);
-
-    try {
-      const { result } = renderHook(() => useInheritedPlatformSettings(), {
-        wrapper,
-      });
-
-      act(() => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            origin: "https://platform.example",
-            source: mockParent as unknown as MessageEventSource,
-            data: {
-              type: "AIRJAM_SETTINGS_SYNC",
-              payload: {
-                settings: {
-                  audio: {
-                    masterVolume: 0.25,
-                    musicVolume: 0.5,
-                    sfxVolume: 0.75,
-                  },
-                  accessibility: {
-                    reducedMotion: true,
-                    highContrast: true,
-                  },
-                  feedback: {
-                    hapticsEnabled: false,
-                  },
-                  previewControllers: {
-                    activeOpacity: 0.65,
-                  },
-                },
-              },
-            },
-          }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(result.current).toEqual({
-          audio: {
-            masterVolume: 0.25,
-            musicVolume: 0.5,
-            sfxVolume: 0.75,
-          },
-          accessibility: {
-            reducedMotion: true,
-            highContrast: true,
-          },
-          feedback: {
-            hapticsEnabled: false,
-          },
-          previewControllers: {
-            activeOpacity: 0.65,
-          },
-        });
-      });
-
-      expect(window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY)).toBe(
-        null,
-      );
-    } finally {
-      Object.defineProperty(window, "parent", {
-        configurable: true,
-        value: originalParent,
-      });
-      Object.defineProperty(document, "referrer", {
-        configurable: true,
-        value: "",
-      });
-    }
-  });
-
-  it("marks inherited settings ready only after the first iframe sync message", async () => {
-    const originalParent = window.parent;
-    const mockParent = {
-      postMessage: vi.fn(),
-    };
-    Object.defineProperty(window, "parent", {
-      configurable: true,
-      value: mockParent,
-    });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: "https://platform.example/arcade",
-    });
-
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, null, children);
-
-    try {
-      const { result } = renderHook(
-        () => ({
-          settings: useInheritedPlatformSettings(),
-          status: usePlatformSettingsRuntimeStatus(),
-        }),
-        { wrapper },
-      );
-
-      expect(result.current.status).toBe("waiting");
-
-      act(() => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            origin: "https://platform.example",
-            source: mockParent as unknown as MessageEventSource,
-            data: {
-              type: "AIRJAM_SETTINGS_SYNC",
-              payload: {
-                settings: {
-                  ...DEFAULT_PLATFORM_SETTINGS,
-                  audio: {
-                    masterVolume: 0.2,
-                    musicVolume: 0.05,
-                    sfxVolume: 0.9,
-                  },
-                },
-              },
-            },
-          }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(result.current.status).toBe("ready");
-        expect(result.current.settings.audio.musicVolume).toBe(0.05);
-      });
-    } finally {
-      Object.defineProperty(window, "parent", {
-        configurable: true,
-        value: originalParent,
-      });
-      Object.defineProperty(document, "referrer", {
-        configurable: true,
-        value: "",
-      });
-    }
-  });
-
-  it("creates a local owner runtime when mounted without an outer settings context", () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsBoundary, null, children);
-
-    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
-
-    expect(result.current.settings).toEqual(DEFAULT_PLATFORM_SETTINGS);
-  });
-
-  it("reuses an outer owner runtime instead of mounting a nested settings owner", () => {
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
-        persistence: "local",
-        children: createElement(PlatformSettingsBoundary, null, children),
-      });
-
-    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
-
-    act(() => {
-      result.current.updateAudio({ musicVolume: 0.42 });
-    });
-
-    expect(result.current.settings.audio.musicVolume).toBe(0.42);
+    expect(() => result.current.setRoom({ volume: 1 })).toThrow(/screen/);
   });
 });

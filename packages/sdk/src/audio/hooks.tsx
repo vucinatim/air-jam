@@ -15,8 +15,8 @@ import {
   hostRuntimeContext,
 } from "../runtime/runtime-owner-contexts";
 import {
+  useAirJamSurfaceSettings,
   usePlatformSettingsRuntimeStatus,
-  useResolvedPlatformSettingsSnapshot,
 } from "../settings/platform-settings-runtime";
 import {
   AudioManager,
@@ -131,7 +131,7 @@ function useAudioRuntimeState(manager: AudioManager): {
   const host = useContext(
     hostRuntimeContext,
   ) as AirJamHostRuntimeControls | null;
-  const platformSettings = useResolvedPlatformSettingsSnapshot();
+  const platformSettings = useAirJamSurfaceSettings();
   const platformSettingsStatus = usePlatformSettingsRuntimeStatus();
   const platformSettingsReady = platformSettingsStatus === "ready";
   const [status, setStatus] = useState<AudioRuntimeStatus>(() =>
@@ -160,7 +160,7 @@ function useAudioRuntimeState(manager: AudioManager): {
       return;
     }
 
-    manager.applyPlatformAudioSettings(platformSettings.audio);
+    manager.applyAudioLevels(platformSettings.audio);
   }, [manager, platformSettings.audio, platformSettingsReady]);
 
   useEffect(() => {
