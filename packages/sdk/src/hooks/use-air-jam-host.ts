@@ -149,6 +149,18 @@ export interface AirJamHostApi {
    * room confirms the player left.
    */
   removeController: (controllerId: string) => Promise<RoomActionAck>;
+  /**
+   * Gives a player the colour the game shows them in (a hex colour,
+   * `#rrggbb`), for example when they pick a team, so the screen's player
+   * bar, its controller windows and their own phone show them the same way.
+   * Until a game sets one, each player has a colour the room picked.
+   *
+   * @example
+   * ```ts
+   * host.setPlayerColor(playerId, team === "red" ? "#ef4444" : "#3b82f6");
+   * ```
+   */
+  setPlayerColor: (controllerId: string, color: string) => void;
   /** Whether new players may join this host's room; held across reconnects. */
   setRoomLocked: (locked: boolean) => void;
   /**
@@ -189,6 +201,7 @@ export type AirJamHostRuntimeControls = Pick<
   | "setRuntimeState"
   | "sendSignal"
   | "removeController"
+  | "setPlayerColor"
   | "setRoomLocked"
   | "resetRoom"
   | "room"

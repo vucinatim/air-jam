@@ -111,7 +111,7 @@ interface Seat {
   label: string;
   localSeatLabel?: string;
   avatarId?: string;
-  readonly color: string;
+  color: string;
   page?: string;
   connection: ConnectionId | null;
   holdUntil: number | null;
@@ -711,6 +711,13 @@ export class Room {
           this.closeConnection(seat.connection, "removed");
         }
         return this.freeSeat(seat, "removed", now);
+      }
+      case "color": {
+        const seat = this.seats.get(frame.seat);
+        if (!seat || seat.color === frame.color) return;
+        seat.color = frame.color;
+        this.changedSeats.add(seat.id);
+        return this.announceSeat(seat, null);
       }
       case "drop":
         if (!this.channels.drop(frame.channel)) return;
