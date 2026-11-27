@@ -188,8 +188,9 @@ export const createParentPlatformSettingsBridge = (
 };
 
 export interface InheritedPlatformSettingsBridgeOptions {
+  /** The platform page embedding this game, as its topology declares it. */
+  parent: { window: Window; origin: string };
   applySettings: (settings: AirJamSurfaceSettings) => void;
-  onBridgeUnavailable?: () => void;
   onBridgeAttached?: (origin: string) => void;
 }
 
@@ -245,27 +246,10 @@ export const serveEmbeddedGameSettings = (port: MessagePort): (() => void) => {
 };
 
 export const initializeInheritedPlatformSettingsBridge = ({
+  parent,
   applySettings,
-  onBridgeUnavailable,
   onBridgeAttached,
 }: InheritedPlatformSettingsBridgeOptions): (() => void) => {
-  if (typeof window === "undefined" || window.parent === window) {
-    onBridgeUnavailable?.();
-    return () => {};
-  }
-
-  const trustedParentOrigin = (() => {
-    try {
-      return document.referrer ? new URL(document.referrer).origin : null;
-    } catch {
-      return null;
-    }
-  })();
-  if (!trustedParentOrigin) {
-    onBridgeUnavailable?.();
-    return () => {};
-  }
-
   let bridgePortCleanup: (() => void) | null = null;
 
   const bindBridgePort = (port: MessagePort) => {
@@ -294,13 +278,8 @@ export const initializeInheritedPlatformSettingsBridge = ({
   };
 
   const handleMessage = (event: MessageEvent<unknown>) => {
-    if (event.source !== window.parent) {
+    if (event.source !== parent.window || event.origin !== parent.origin)
       return;
-    }
-
-    if (event.origin !== trustedParentOrigin) {
-      return;
-    }
 
     if (!parseAirJamBridgeInitMessage(event.data)) {
       return;
@@ -317,15 +296,10 @@ export const initializeInheritedPlatformSettingsBridge = ({
 
   window.addEventListener("message", handleMessage);
 
-  if (typeof window.parent.postMessage === "function") {
-    window.parent.postMessage(
-      {
-        type: AIRJAM_SETTINGS_READY,
-        payload: { ready: true },
-      },
-      trustedParentOrigin,
-    );
-  }
+  parent.window.postMessage(
+    { type: AIRJAM_SETTINGS_READY, payload: { ready: true } },
+    parent.origin,
+  );
 
   return () => {
     window.removeEventListener("message", handleMessage);
