@@ -8,7 +8,9 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { useAirJamConfig } from "../context/air-jam-context";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
+import { embeddedRuntimeParent } from "../runtime/embedded-parent";
 import { emitAirJamDevRuntimeEvent } from "../runtime/dev-runtime-events";
 import {
   DEFAULT_ROOM_SETTINGS,
@@ -187,19 +189,28 @@ function OwnerRuntime({ children, surface }: PlatformSettingsRuntimeProps) {
   );
 }
 
-function InheritedRuntime({ children }: { children: ReactNode }) {
+type EmbeddingParent = NonNullable<ReturnType<typeof embeddedRuntimeParent>>;
+
+/** Waits for the embedding platform's settings; nothing plays before they arrive. */
+function InheritedRuntime({
+  children,
+  parent,
+}: {
+  children: ReactNode;
+  parent: EmbeddingParent;
+}) {
   const [status, setStatus] =
     useState<PlatformSettingsRuntimeStatus>("waiting");
 
   useEffect(
     () =>
       initializeInheritedPlatformSettingsBridge({
+        parent,
         applySettings: (settings) => {
           publishSurfaceSettings(settings);
           presentSurfaceSettings(settings);
           setStatus("ready");
         },
-        onBridgeUnavailable: () => setStatus("ready"),
         onBridgeAttached: (origin) => {
           emitAirJamDevRuntimeEvent({
             event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
@@ -209,7 +220,7 @@ function InheritedRuntime({ children }: { children: ReactNode }) {
           });
         },
       }),
-    [],
+    [parent],
   );
 
   const value = useMemo<RuntimeContext>(
@@ -233,14 +244,17 @@ export function PlatformSettingsRuntime(props: PlatformSettingsRuntimeProps) {
 
 /**
  * A game's settings boundary: inside a platform page it uses that page's
- * settings; in a platform frame it inherits what the platform resolved for
- * it; on its own it owns its device's settings.
+ * settings; embedded by the platform it inherits what the platform resolved
+ * for it, from the parent its topology declares; on its own it owns its
+ * device's settings.
  */
 export function PlatformSettingsBoundary(props: PlatformSettingsRuntimeProps) {
   const existing = useContext(runtimeContext);
+  const { topology } = useAirJamConfig();
+  const parent = useMemo(() => embeddedRuntimeParent(topology), [topology]);
   if (existing) return props.children;
-  return window.parent !== window ? (
-    <InheritedRuntime>{props.children}</InheritedRuntime>
+  return parent ? (
+    <InheritedRuntime parent={parent}>{props.children}</InheritedRuntime>
   ) : (
     <OwnerRuntime {...props} />
   );

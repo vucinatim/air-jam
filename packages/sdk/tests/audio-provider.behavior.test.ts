@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HostSessionProvider } from "../src/context/session-providers";
+import { resolveProjectRuntimeTopology } from "../src/runtime-topology";
 import { createBridgeHandshake } from "../src/runtime/iframe-bridge";
 import { DEFAULT_SURFACE_SETTINGS } from "../src/settings/platform-settings";
 
@@ -221,7 +222,9 @@ describe("AudioRuntime", () => {
     });
   });
 
-  it("does not become ready in an embedded runtime until inherited settings arrive", async () => {
+  // A frame that reloads itself (an edit, a restart) has no referrer; the
+  // platform it answers is the one its topology declares.
+  it("plays nothing in an embedded runtime until its declared platform's settings arrive", async () => {
     const originalParent = window.parent;
     const mockParent = {
       postMessage: vi.fn(),
@@ -230,22 +233,24 @@ describe("AudioRuntime", () => {
       configurable: true,
       value: mockParent,
     });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: "https://platform.example/arcade",
-    });
 
     const hooks = await import("../src/audio/hooks");
     const { PlatformSettingsBoundary } =
       await import("../src/settings/platform-settings-runtime");
+    const topology = resolveProjectRuntimeTopology({
+      runtimeMode: "hosted-release",
+      surfaceRole: "host",
+      appOrigin: "https://game.example",
+      embedded: true,
+      embedParentOrigin: "https://platform.example",
+    });
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsBoundary, {
-        surface: "screen",
-        children: createElement(
-          HostSessionProvider,
-          null,
-          createElement(hooks.AudioRuntime, { manifest, children }),
-        ),
+      createElement(HostSessionProvider, {
+        topology,
+        children: createElement(PlatformSettingsBoundary, {
+          surface: "screen",
+          children: createElement(hooks.AudioRuntime, { manifest, children }),
+        }),
       });
 
     try {
@@ -266,6 +271,10 @@ describe("AudioRuntime", () => {
       });
 
       expect(runtime.result.current.status).toBe("idle");
+      expect(mockParent.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "AIRJAM_SETTINGS_READY" }),
+        "https://platform.example",
+      );
 
       const channel = new MessageChannel();
       act(() => {
@@ -303,10 +312,6 @@ describe("AudioRuntime", () => {
       Object.defineProperty(window, "parent", {
         configurable: true,
         value: originalParent,
-      });
-      Object.defineProperty(document, "referrer", {
-        configurable: true,
-        value: "",
       });
     }
   });
