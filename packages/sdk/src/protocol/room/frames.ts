@@ -45,6 +45,11 @@ export const seatProfileSchema = z.object({
 });
 export type SeatProfile = z.infer<typeof seatProfileSchema>;
 
+/** A player's colour as the game shows them: a hex colour, `#rrggbb`. */
+export const playerColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "A player colour is a hex colour, #rrggbb.");
+
 /**
  * The first frame from every client. `key` is a secret of 128 random bits the
  * client stored before connecting; the same key always means the same seat or
@@ -133,6 +138,12 @@ export const hostToRoomFrameSchemas = {
     locked: z.boolean().optional(),
   }),
   remove: z.object({ type: z.literal("remove"), seat: seatIdSchema }),
+  /** The game gives a player its colour; every device shows them in it. */
+  color: z.object({
+    type: z.literal("color"),
+    seat: seatIdSchema,
+    color: playerColorSchema,
+  }),
   drop: z.object({ type: z.literal("drop"), channel: channelSchema }),
   activity: z.object({
     type: z.literal("activity"),

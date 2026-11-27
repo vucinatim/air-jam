@@ -293,6 +293,19 @@ describe("room core", () => {
       ]);
       expect(room.disconnect("c1", 0)).toEqual([]);
     });
+
+    it("shows a player in the colour the game gives them, on every device", () => {
+      const room = ready(2);
+      const effects = room.receive(
+        "host",
+        frame({ type: "color", seat: "p1", color: "#ef4444" }),
+        0,
+      );
+      const seat = expect.objectContaining({ id: "p1", color: "#ef4444" });
+      expect(sent(effects, "host")).toEqual([{ type: "seat", seat }]);
+      expect(sent(effects, "c1")).toEqual([{ type: "seat", seat }]);
+      expect(sent(effects, "c2")).toEqual([{ type: "seat", seat }]);
+    });
   });
 
   describe("resume", () => {

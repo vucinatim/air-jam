@@ -208,6 +208,11 @@ export class HostRoomSession {
     this.send({ type: "remove", seat });
   }
 
+  /** Gives a seat's player the colour the game shows them in. */
+  setColor(seat: SeatId, color: string): void {
+    this.send({ type: "color", seat, color });
+  }
+
   /** What is on screen; only rooms whose gate allows it accept a change. */
   setActivity(activity: string | null): void {
     this.activity = { value: activity };
@@ -373,6 +378,7 @@ export type HostRoom = Pick<
   | "signal"
   | "configure"
   | "remove"
+  | "setColor"
   | "setActivity"
   | "end"
   | "close"

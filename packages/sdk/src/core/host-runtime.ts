@@ -8,6 +8,7 @@ import {
   leasedControlRequestSchema,
   type ControllerLeasedControlAck,
 } from "../protocol/leased-control";
+import { playerColorSchema } from "../protocol/room/frames";
 import {
   AIRJAM_CONTROL_CHANNEL,
   AIRJAM_LEASED_CONTROL_REQUEST,
@@ -572,6 +573,18 @@ export class HostRuntime {
     });
     room.remove(controllerId);
     return confirmation;
+  };
+
+  /**
+   * Gives a player the colour the game shows them in, so the screen's
+   * player bar, its controller windows and the player's own phone show
+   * them the same way. A player no longer in the room is left alone.
+   */
+  readonly setPlayerColor = (controllerId: string, color: string): void => {
+    const valid = playerColorSchema.parse(color);
+    const room = this.currentRoom;
+    if (!room?.seats.some((seat) => seat.id === controllerId)) return;
+    room.setColor(controllerId, valid);
   };
 
   /** Whether new players may join; held across reconnects and new rooms. */

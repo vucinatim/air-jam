@@ -80,6 +80,13 @@ const createReplayRoom = () => {
     signal: () => {},
     configure: () => {},
     remove: () => {},
+    // The game's colours replay as it set them.
+    setColor: (seat, color) => {
+      const view = seats.get(seat);
+      if (!view) return;
+      seats.set(seat, { ...view, color });
+      emitSeats();
+    },
     setActivity: () => {},
     end: () => {},
     close: () => {},

@@ -222,6 +222,20 @@ const playerCount = host.players.length;
 const player = host.players.find((p) => p.id === targetId);
 ```
 
+### Player Colours
+
+Each player starts with a colour the room picks. When the game decides a
+player's colour (a team, a stand, a car), it says so, and every device shows
+the player that way: the screen's player bar and controller windows, the
+player's own phone, and `player.color` in the game and its controllers.
+
+```tsx
+host.setPlayerColor(playerId, team === "red" ? "#ef4444" : "#3b82f6");
+```
+
+Colours are hex, `#rrggbb`. Draw players from `player.color` so the game
+and Air Jam never disagree.
+
 ## Controller Presentation State
 
 The host publishes a small presentation for the phones: whether the game is

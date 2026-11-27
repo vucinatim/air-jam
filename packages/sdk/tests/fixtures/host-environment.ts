@@ -70,6 +70,12 @@ export const createMemoryRoom = (code = "ROOM1", instance = "instance-1") => {
       seats.delete(seat);
       events.emit("seats", [...seats.values()]);
     },
+    setColor: (seat, color) => {
+      const view = seats.get(seat);
+      if (!view) return;
+      seats.set(seat, { ...view, color });
+      events.emit("seats", [...seats.values()]);
+    },
     setActivity: () => {},
     end: () => {},
     close: () => {
