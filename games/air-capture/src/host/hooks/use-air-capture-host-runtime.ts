@@ -4,8 +4,8 @@ import {
   useAirJamStore,
 } from "@air-jam/sdk";
 import { useHostJoinControls } from "@air-jam/sdk/ui";
-import { useMemo, useState } from "react";
-import { type TeamId } from "../../game/domain/team";
+import { useEffect, useMemo, useState } from "react";
+import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { prototypeMatchStore } from "../../game/stores/match/match-store";
 
 /** What the host screen shows; the match itself runs in the simulation. */
@@ -59,6 +59,17 @@ export function useAirCaptureHostRuntime() {
 
     return grouped;
   }, [players, teamAssignments]);
+
+  // Each player wears their team's colour on every device: the screen's
+  // player bar, their phone and the game.
+  useEffect(() => {
+    for (const player of players) {
+      const teamId = teamAssignments[player.id]?.teamId;
+      if (!teamId) continue;
+      const color = TEAM_CONFIG[teamId].color;
+      if (player.color !== color) host.setPlayerColor(player.id, color);
+    }
+  }, [host, players, teamAssignments]);
 
   const joinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
